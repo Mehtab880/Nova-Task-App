@@ -1,0 +1,15 @@
+pluginManagement { includeBuild("../../../node_modules/@react-native/gradle-plugin") }
+plugins { id("com.facebook.react.settings") }
+extensions.configure(com.facebook.react.ReactSettingsExtension) { ex ->
+  // Invoke the CLI through Node directly rather than the `npx` shim so the
+  // command resolves on Windows (where npx is npx.cmd) and POSIX hosts alike.
+  def cliBin = file("../../../node_modules/@react-native-community/cli/build/bin.js").absolutePath
+  ex.autolinkLibrariesFromCommand(
+    ["node", cliBin, "config"],
+    file(".."),
+    files("package.json", "react-native.config.js", "../../../pnpm-lock.yaml")
+  )
+}
+rootProject.name = 'NovaTask'
+include ':app'
+includeBuild('../../../node_modules/@react-native/gradle-plugin')

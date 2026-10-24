@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  The Nova Task database is local-only for V1. Even though allowBackup=false,
+  explicitly exclude the task database from cloud backup and device transfer.
+-->
+<data-extraction-rules>
+    <cloud-backup>
+        <exclude domain="database" path="nova.db" />
+        <exclude domain="database" path="nova.db-wal" />
+        <exclude domain="database" path="nova.db-shm" />
+    </cloud-backup>
+    <device-transfer>
+        <exclude domain="database" path="nova.db" />
+        <exclude domain="database" path="nova.db-wal" />
+        <exclude domain="database" path="nova.db-shm" />
+    </device-transfer>
+</data-extraction-rules>

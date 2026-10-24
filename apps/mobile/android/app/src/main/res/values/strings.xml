@@ -1,0 +1,8 @@
+<resources>
+    <string name="app_name">Nova Task</string>
+    <string name="notification_channel_reminders_name">Task reminders</string>
+    <string name="notification_channel_reminders_description">Reminders for scheduled tasks</string>
+    <string name="notification_action_complete">Complete</string>
+    <string name="notification_action_snooze">Snooze 10 min</string>
+    <string name="notification_default_title">Task reminder</string>
+</resources>

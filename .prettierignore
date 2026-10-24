@@ -1,0 +1,10 @@
+node_modules
+.pnpm-store
+dist
+build
+coverage
+android/.gradle
+android/build
+android/app/build
+*.lock
+pnpm-lock.yaml

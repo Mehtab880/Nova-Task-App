@@ -1,0 +1,5 @@
+#!/usr/bin/env sh
+# Run fast checks before every commit. CI enforces the full suite.
+# Chunk file lists so the hook also works within the Windows command-line limit.
+pnpm exec lint-staged --max-arg-length 2000
+node tools/gitleaks-protect.mjs

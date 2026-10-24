@@ -1,0 +1,192 @@
+apply plugin: "com.android.application"
+apply plugin: "org.jetbrains.kotlin.android"
+apply plugin: "com.facebook.react"
+
+/**
+ * Nova Task Android application module.
+ *
+ * Product flavors: dev / staging / prod.
+ * All application IDs are fixed and never derived with suffixes.
+ */
+react {
+    // The React Native project root is apps/mobile (package.json, index.js).
+    // Dependencies live at the monorepo root and are pointed to explicitly.
+    root = file("../..")
+    reactNativeDir = file("../../../../node_modules/react-native")
+    codegenDir = file("../../../../node_modules/@react-native/codegen")
+    cliFile = file("../../../../node_modules/react-native/cli.js")
+    // Hermes ships from the hoisted monorepo root; the plugin would otherwise
+    // look under apps/mobile/node_modules. %OS-BIN% stays for cross-platform CI.
+    def hermescName = System.getProperty("os.name").toLowerCase().contains("windows")
+        ? "hermesc.exe"
+        : "hermesc"
+    hermesCommand = file("../../../../node_modules/hermes-compiler/hermesc/%OS-BIN%/${hermescName}").absolutePath
+    debuggableVariants = ["devDebug", "stagingDebug", "prodDebug"]
+    autolinkLibrariesWithApp()
+}
+
+def enableProguardInReleaseBuilds = true
+
+def keystorePropertiesFile = rootProject.file("keystore.properties")
+def keystoreProperties = new Properties()
+if (keystorePropertiesFile.exists()) {
+    keystorePropertiesFile.withInputStream { stream ->
+        keystoreProperties.load(stream)
+    }
+}
+def releaseSigningConfigured = keystorePropertiesFile.exists()
+if (releaseSigningConfigured) {
+    ["storeFile", "storePassword", "keyAlias", "keyPassword"].each { key ->
+        if (!keystoreProperties.getProperty(key)?.trim()) {
+            throw new GradleException(
+                "keystore.properties is missing required key '${key}'. " +
+                    "See docs/android-release-signing.md."
+            )
+        }
+    }
+    if (!file(keystoreProperties.getProperty("storeFile")).exists()) {
+        throw new GradleException(
+            "keystore.properties points at a missing keystore file. " +
+                "See docs/android-release-signing.md."
+        )
+    }
+}
+def requireReleaseSigning = gradle.startParameter.projectProperties["requireReleaseSigning"] == "true"
+if (requireReleaseSigning && !releaseSigningConfigured) {
+    throw new GradleException(
+        "Release signing is required but apps/mobile/android/keystore.properties is missing. " +
+            "See docs/android-release-signing.md."
+    )
+}
+if (!releaseSigningConfigured) {
+    gradle.taskGraph.whenReady { graph ->
+        if (graph.allTasks.any { it.name.toLowerCase().contains("release") }) {
+            logger.warn(
+                "NON-DISTRIBUTABLE RELEASE: keystore.properties is missing. " +
+                    "The release APK will be signed with the public debug key. " +
+                    "Configure a real keystore or pass -PrequireReleaseSigning=true to fail closed."
+            )
+        }
+    }
+}
+
+android {
+    ndkVersion rootProject.ext.ndkVersion
+    buildToolsVersion rootProject.ext.buildToolsVersion
+    compileSdk rootProject.ext.compileSdkVersion
+
+    namespace "com.novatask.app"
+
+    defaultConfig {
+        applicationId "com.novatask.app"
+        minSdkVersion rootProject.ext.minSdkVersion
+        targetSdkVersion rootProject.ext.targetSdkVersion
+        versionCode 1
+        versionName "0.1.0"
+        manifestPlaceholders = [usesCleartextTraffic: "false"]
+    }
+
+    buildFeatures {
+        buildConfig = true
+    }
+
+    flavorDimensions "environment"
+    productFlavors {
+        dev {
+            dimension "environment"
+            applicationId "com.novatask.app.dev"
+            versionNameSuffix "-dev"
+            buildConfigField "String", "APP_ENV", "\"dev\""
+            buildConfigField "String", "API_BASE_URL", "\"http://10.0.2.2:8080\""
+            buildConfigField "boolean", "ENABLE_M0_SPIKE", "true"
+        }
+        staging {
+            dimension "environment"
+            applicationId "com.novatask.app.staging"
+            versionNameSuffix "-staging"
+            buildConfigField "String", "APP_ENV", "\"staging\""
+            buildConfigField "String", "API_BASE_URL", "\"https://staging-api.novatask.app\""
+            buildConfigField "boolean", "ENABLE_M0_SPIKE", "false"
+        }
+        prod {
+            dimension "environment"
+            applicationId "com.novatask.app"
+            buildConfigField "String", "APP_ENV", "\"prod\""
+            buildConfigField "String", "API_BASE_URL", "\"https://api.novatask.app\""
+            buildConfigField "boolean", "ENABLE_M0_SPIKE", "false"
+        }
+    }
+
+    signingConfigs {
+        debug {
+            storeFile file('debug.keystore')
+            storePassword 'android'
+            keyAlias 'androiddebugkey'
+            keyPassword 'android'
+        }
+        if (releaseSigningConfigured) {
+            release {
+                storeFile file(keystoreProperties.getProperty("storeFile"))
+                storePassword keystoreProperties.getProperty("storePassword")
+                keyAlias keystoreProperties.getProperty("keyAlias")
+                keyPassword keystoreProperties.getProperty("keyPassword")
+            }
+        }
+    }
+
+    buildTypes {
+        debug {
+            manifestPlaceholders = [usesCleartextTraffic: "true"]
+            signingConfig signingConfigs.debug
+        }
+        release {
+            // A missing keystore.properties uses the public debug key so local/CI
+            // smoke builds work. Gradle prints NON-DISTRIBUTABLE above; store/CI
+            // signing must provide keystore.properties and can fail closed with
+            // -PrequireReleaseSigning=true.
+            signingConfig releaseSigningConfigured ? signingConfigs.release : signingConfigs.debug
+            minifyEnabled enableProguardInReleaseBuilds
+            shrinkResources enableProguardInReleaseBuilds
+            proguardFiles getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro"
+        }
+    }
+
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_17
+        targetCompatibility JavaVersion.VERSION_17
+    }
+
+    androidResources {
+        noCompress += ["ttf"]
+    }
+}
+
+kotlin {
+    jvmToolchain(17)
+}
+
+dependencies {
+    implementation("com.facebook.react:react-android")
+    // NotificationCompat, NotificationManagerCompat, and ContextCompat for M4.
+    implementation("androidx.core:core-ktx:1.17.0")
+
+    testImplementation("junit:junit:4.13.2")
+
+    if (hermesEnabled.toBoolean()) {
+        implementation("com.facebook.react:hermes-android")
+    } else {
+        throw new GradleException("Nova Task requires Hermes. Set hermesEnabled=true in gradle.properties.")
+    }
+}
+
+// Fonts live in apps/mobile/assets/fonts and are copied into the Android assets
+// directory before every build. The font-check script validates the source of truth.
+def copyNovaFonts = tasks.register("copyNovaFonts", Copy) {
+    from file("../../assets/fonts")
+    include "*.ttf"
+    into file("src/main/assets/fonts")
+}
+
+tasks.named("preBuild").configure {
+    dependsOn(copyNovaFonts)
+}

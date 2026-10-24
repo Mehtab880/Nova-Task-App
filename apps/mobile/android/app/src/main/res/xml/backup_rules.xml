@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Legacy (API 30 and below) backup rules. allowBackup=false is the primary control. -->
+<full-backup-content>
+    <exclude domain="database" path="nova.db" />
+    <exclude domain="database" path="nova.db-wal" />
+    <exclude domain="database" path="nova.db-shm" />
+</full-backup-content>

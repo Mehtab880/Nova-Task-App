@@ -1,0 +1,12 @@
+{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "types": ["react", "jest"],
+    "paths": {
+      "@/*": ["./src/*"],
+      "@nova/shared": ["../../packages/shared/src/index.ts"]
+    }
+  },
+  "include": ["src/**/*.ts", "src/**/*.tsx", "src/**/*.d.ts", "jest.setup.ts"],
+  "exclude": ["node_modules", "android", "build"]
+}

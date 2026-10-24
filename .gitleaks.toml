@@ -1,0 +1,15 @@
+# Nova Task gitleaks configuration.
+# Extends the upstream default rules. Nothing in this repository should contain a secret.
+title = "Nova Task"
+
+[extend]
+useDefault = true
+
+[allowlist]
+description = "Local development false positives"
+paths = [
+  '''pnpm-lock\.yaml''',
+  '''docs/.*\.md''',
+  '''apps/mobile/android/app/debug\.keystore''',
+  '''tools/fixtures/.*''',
+]

@@ -1,0 +1,71 @@
+# Dependencies
+node_modules/
+.pnpm-store/
+
+# Build output
+build/
+dist/
+coverage/
+artifacts/
+*.tsbuildinfo
+*.jsbundle
+*.apk
+*.aab
+*.hprof
+
+# Android / Gradle
+.gradle/
+**/.gradle/
+.kotlin/
+.cxx/
+**/.externalNativeBuild/
+local.properties
+captures/
+apps/mobile/android/app/src/main/assets/fonts/
+
+# Native secrets and signing
+*.jks
+*.jks.base64
+*.keystore
+*.keystore.base64
+# The public AOSP debug key is intentionally tracked for local debug builds only.
+!apps/mobile/android/app/debug.keystore
+keystore.properties
+!apps/mobile/android/keystore.properties.example
+keystores/
+*.p12
+*.mobileprovision
+google-services.json
+
+# Environment files (only the example is committed)
+.env
+.env.*
+!.env.example
+
+# IDE / OS
+.idea/
+.vscode/
+*.iml
+.DS_Store
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+*.swp
+*.swo
+*~
+
+# Logs
+*.log
+npm-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# Test artifacts
+apps/mobile/android/app/build/reports/
+apps/mobile/android/app/build/test-results/
+
+# Metro
+.metro-health-check*
+
+# Generated tool state
+.husky/_/

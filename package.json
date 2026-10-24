@@ -1,0 +1,65 @@
+{
+  "name": "nova-task",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Nova Task — Android-first task manager. Milestone M4 reminder proof of concept.",
+  "packageManager": "pnpm@10.34.7",
+  "engines": {
+    "node": ">=22.13.0"
+  },
+  "scripts": {
+    "android": "pnpm --filter @nova/mobile android",
+    "android:dev": "pnpm --filter @nova/mobile android:dev",
+    "android:staging": "pnpm --filter @nova/mobile android:staging",
+    "android:prod": "pnpm --filter @nova/mobile android:prod",
+    "start": "pnpm --filter @nova/mobile start",
+    "typecheck": "pnpm --filter @nova/shared typecheck && pnpm --filter @nova/mobile typecheck",
+    "lint": "eslint .",
+    "lint:fix": "eslint . --fix",
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
+    "test": "jest --config jest.config.js",
+    "test:watch": "jest --config jest.config.js --watch",
+    "check:fonts": "node tools/check-fonts.mjs",
+    "check:android-config": "node tools/verify-android-config.mjs",
+    "check:target-sdk": "node tools/verify-target-sdk.mjs",
+    "verify": "pnpm typecheck && pnpm lint && pnpm format:check && pnpm test && pnpm check:fonts && pnpm check:android-config",
+    "prepare": "husky"
+  },
+  "devDependencies": {
+    "@babel/core": "7.28.4",
+    "@babel/preset-env": "7.28.3",
+    "@babel/preset-typescript": "7.27.1",
+    "@eslint/js": "9.39.5",
+    "@types/jest": "29.5.14",
+    "@types/luxon": "3.7.6",
+    "@types/node": "24.5.2",
+    "babel-jest": "29.7.0",
+    "babel-plugin-module-resolver": "5.0.3",
+    "eslint": "9.39.5",
+    "eslint-config-prettier": "10.1.8",
+    "eslint-plugin-react": "7.37.5",
+    "eslint-plugin-react-hooks": "7.1.1",
+    "eslint-plugin-react-native": "5.0.0",
+    "husky": "9.1.7",
+    "jest": "29.7.0",
+    "lint-staged": "17.6.0",
+    "prettier": "3.9.10",
+    "typescript": "6.0.3",
+    "typescript-eslint": "8.72.0"
+  },
+  "lint-staged": {
+    "*.{ts,tsx,js,mjs,cjs}": [
+      "eslint --fix --max-warnings=0",
+      "prettier --write"
+    ],
+    "*.{json,md,yml,yaml}": [
+      "prettier --write"
+    ]
+  },
+  "pnpm": {
+    "onlyBuiltDependencies": [
+      "hermes-compiler"
+    ]
+  }
+}
