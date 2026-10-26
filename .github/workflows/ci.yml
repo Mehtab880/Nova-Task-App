@@ -4,10 +4,14 @@ on:
   push:
     branches: [main]
   pull_request:
+  workflow_dispatch:
 
 concurrency:
+  # An in-flight run is cancelled when a newer run for the same ref queues.
+  # Keep that for pull requests, but let main runs finish so a push during a
+  # 20 minute Android build does not throw away the whole run.
   group: ci-${{ github.ref }}
-  cancel-in-progress: true
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 permissions:
   contents: read
