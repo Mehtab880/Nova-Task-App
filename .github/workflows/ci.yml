@@ -59,7 +59,7 @@ jobs:
         run: pnpm format:check
 
       - name: Jest
-        run: pnpm test -- --ci --runInBand
+        run: pnpm test:ci
 
       - name: Font check
         run: pnpm check:fonts

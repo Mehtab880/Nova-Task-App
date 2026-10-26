@@ -19,6 +19,7 @@
     "format": "prettier --write .",
     "format:check": "prettier --check .",
     "test": "jest --config jest.config.js",
+    "test:ci": "jest --config jest.config.js --ci --runInBand",
     "test:watch": "jest --config jest.config.js --watch",
     "check:fonts": "node tools/check-fonts.mjs",
     "check:android-config": "node tools/verify-android-config.mjs",
