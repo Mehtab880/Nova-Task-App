@@ -109,6 +109,26 @@ export function TaskDetailScreen(): React.JSX.Element {
       .catch(fail);
   };
 
+  const handleRestore = (): void => {
+    if (detail === null) return;
+    setActionError(null);
+    void store
+      .restoreTask(detail.task.id)
+      .then(() => reload())
+      .catch(fail);
+  };
+
+  const handleDuplicate = (): void => {
+    if (detail === null) return;
+    setActionError(null);
+    void store
+      .duplicateTask(detail.task.id)
+      .then(copy => {
+        navigation.push('TaskDetail', { taskId: copy.id });
+      })
+      .catch(fail);
+  };
+
   const handleAddSubtask = (): void => {
     if (detail === null) return;
     const title = subtaskTitle.trim();
@@ -161,6 +181,7 @@ export function TaskDetailScreen(): React.JSX.Element {
   const { task, subtasks, reminders, recurrence } = detail;
   const completed = task.status === 'done';
   const deleted = task.deletedAt !== null;
+  const archived = task.archivedAt !== null;
   const due = task.dueDate === null ? null : dueLabel(task.dueDate, task.dueTime, detail.today, t);
   const reminder = reminders[0];
   const reminderSummary = reminderLabel(reminder, t);
@@ -310,12 +331,31 @@ export function TaskDetailScreen(): React.JSX.Element {
               accessibilityHint={t('tasks.detail.skipHint')}
             />
           )}
-          {deleted ? null : (
+          {deleted ? null : archived ? (
             <AppButton
-              label={t('tasks.actions.archive')}
-              onPress={handleArchive}
+              label={t('tasks.actions.restore')}
+              onPress={handleRestore}
               variant="secondary"
+              accessibilityHint={t('tasks.detail.restoreHint')}
+              testID="detail-restore-button"
             />
+          ) : (
+            <>
+              <AppButton
+                label={t('tasks.actions.archive')}
+                onPress={handleArchive}
+                variant="secondary"
+                accessibilityHint={t('tasks.detail.archiveHint')}
+                testID="detail-archive-button"
+              />
+              <AppButton
+                label={t('tasks.actions.duplicate')}
+                onPress={handleDuplicate}
+                variant="secondary"
+                accessibilityHint={t('tasks.detail.duplicateHint')}
+                testID="detail-duplicate-button"
+              />
+            </>
           )}
           <AppButton
             label={t('tasks.actions.delete')}

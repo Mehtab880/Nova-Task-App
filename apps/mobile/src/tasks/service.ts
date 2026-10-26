@@ -54,6 +54,7 @@ import {
   findSubtask,
   findTask,
   insertHistory,
+  insertList,
   insertSubtask,
   insertTask,
   insertTombstone,
@@ -75,6 +76,7 @@ import type {
   Task,
   TaskDetail,
   TaskDraft,
+  TaskList,
   TaskPatch,
   TaskSnapshot,
   TaskWithDetails,
@@ -912,6 +914,35 @@ export async function moveTaskById(
     const moved = moveTaskToList(task, listId, context.now);
     await updateTaskRow(db, moved);
     return moved;
+  });
+}
+
+export async function createListByName(name: string, context: ServiceContext): Promise<TaskList> {
+  const trimmed = name.trim();
+  if (trimmed.length === 0) {
+    invalid('A list needs a name', 'list_name_required');
+  }
+  if (trimmed.length > 80) {
+    invalid('List names cannot exceed 80 characters', 'list_name_too_long');
+  }
+  return m5Transaction(async db => {
+    const lists = await listLists(db);
+    const clash = lists.some(list => list.name.trim().toLowerCase() === trimmed.toLowerCase());
+    if (clash) {
+      invalid('A list with that name already exists', 'list_name_duplicate');
+    }
+    const list: TaskList = {
+      id: createEntityId('list'),
+      name: trimmed,
+      color: null,
+      isDefault: false,
+      sortOrder: lists.reduce((highest, entry) => Math.max(highest, entry.sortOrder), 0) + 1,
+      archivedAt: null,
+      createdAt: context.now,
+      updatedAt: context.now,
+    };
+    await insertList(db, list);
+    return list;
   });
 }
 

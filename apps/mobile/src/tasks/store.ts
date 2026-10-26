@@ -11,7 +11,7 @@ import type {
   RecurrenceInput,
   ReminderInput,
 } from './service';
-import type { Subtask, Task, TaskDetail, TaskPatch, TaskSnapshot } from './types';
+import type { Subtask, Task, TaskDetail, TaskList, TaskPatch, TaskSnapshot } from './types';
 
 /**
  * UI-facing contract. The SQLite implementation is production; component tests
@@ -28,7 +28,9 @@ export interface TaskStore {
   deleteTask(id: string): Promise<DeleteHandle>;
   undoDelete(token: string): Promise<void>;
   archiveTask(id: string): Promise<void>;
+  restoreTask(id: string): Promise<void>;
   duplicateTask(id: string): Promise<Task>;
+  createList(name: string): Promise<TaskList>;
   addSubtask(taskId: string, title: string): Promise<Subtask>;
   toggleSubtask(id: string): Promise<Subtask>;
   deleteSubtask(id: string): Promise<void>;

@@ -8,6 +8,7 @@ import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { useMemo } from 'react';
 
 import { useTheme } from '@/design/ThemeProvider';
+import { ArchivedScreen } from '@/tasks/ui/ArchivedScreen';
 import { TaskDetailScreen } from '@/tasks/ui/TaskDetailScreen';
 import { TaskEditorScreen } from '@/tasks/ui/TaskEditorScreen';
 
@@ -41,6 +42,7 @@ export function RootNavigator(): React.JSX.Element {
       <Stack.Navigator screenOptions={{ headerShown: false }}>
         <Stack.Screen name="Main" component={TabNavigator} />
         <Stack.Screen name="TaskDetail" component={TaskDetailScreen} />
+        <Stack.Screen name="Archived" component={ArchivedScreen} />
         <Stack.Screen
           name="TaskEditor"
           component={TaskEditorScreen}

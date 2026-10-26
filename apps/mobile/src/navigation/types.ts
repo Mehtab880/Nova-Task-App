@@ -11,4 +11,5 @@ export type RootStackParamList = {
   Main: NavigatorScreenParams<MainTabParamList> | undefined;
   TaskDetail: { taskId: string };
   TaskEditor: { taskId?: string } | undefined;
+  Archived: undefined;
 };

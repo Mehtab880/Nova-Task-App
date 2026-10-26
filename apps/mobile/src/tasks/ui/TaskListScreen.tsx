@@ -24,6 +24,7 @@ export interface TaskListScreenProps {
   readonly emptyTitle: string;
   readonly emptyDescription: string;
   readonly showAdd?: boolean;
+  readonly onBack?: () => void;
 }
 
 interface UndoState {
@@ -38,6 +39,7 @@ export function TaskListScreen({
   emptyTitle,
   emptyDescription,
   showAdd = true,
+  onBack,
 }: TaskListScreenProps): React.JSX.Element {
   const theme = useTheme();
   const insets = useSafeAreaInsets();
@@ -88,6 +90,16 @@ export function TaskListScreen({
           gap: theme.spacing.xs,
         }}
       >
+        {onBack === undefined ? null : (
+          <View style={{ alignSelf: 'flex-start' }}>
+            <AppButton
+              label={t('common.back')}
+              onPress={onBack}
+              variant="secondary"
+              testID="list-back-button"
+            />
+          </View>
+        )}
         <AppText variant="title" accessibilityRole="header">
           {title}
         </AppText>

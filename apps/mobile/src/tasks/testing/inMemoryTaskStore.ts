@@ -99,6 +99,7 @@ export function createInMemoryTaskStore(options: InMemoryTaskStoreOptions = {}):
   };
   let revision = 0;
   let sequence = 0;
+  let lists: readonly TaskList[] = DEFAULT_LISTS;
   const listeners = new Set<() => void>();
   const completedUndo = new Map<string, Task['status']>();
   const deletedUndo = new Set<string>();
@@ -137,7 +138,7 @@ export function createInMemoryTaskStore(options: InMemoryTaskStoreOptions = {}):
 
   const snapshot = (filter: TaskFilter): TaskSnapshot => ({
     tasks: entriesFor(filtered(filter)),
-    lists: DEFAULT_LISTS,
+    lists,
     archivedCount: filtered('archived').length,
     today,
     reminders,
@@ -163,7 +164,7 @@ export function createInMemoryTaskStore(options: InMemoryTaskStoreOptions = {}):
     subtasks: subtasks.filter(subtask => subtask.taskId === task.id && subtask.deletedAt === null),
     reminders: reminders.filter(reminder => reminder.taskId === task.id),
     recurrence: null,
-    listName: DEFAULT_LISTS.find(list => list.id === task.listId)?.name ?? null,
+    listName: lists.find(list => list.id === task.listId)?.name ?? null,
     today,
   });
 
@@ -300,6 +301,35 @@ export function createInMemoryTaskStore(options: InMemoryTaskStoreOptions = {}):
       replaceTask({ ...existing, archivedAt, updatedAt: archivedAt });
       emit();
       return Promise.resolve();
+    },
+    restoreTask(id: string) {
+      const existing = findTask(id);
+      if (existing === null) return Promise.reject(new Error(`Task ${id} not found`));
+      const restoredAt = Date.now();
+      replaceTask({ ...existing, archivedAt: null, updatedAt: restoredAt });
+      emit();
+      return Promise.resolve();
+    },
+    createList(name: string) {
+      const trimmed = name.trim();
+      if (trimmed.length === 0) return Promise.reject(new Error('A list needs a name'));
+      const clash = lists.some(list => list.name.trim().toLowerCase() === trimmed.toLowerCase());
+      if (clash) return Promise.reject(new Error('A list with that name already exists'));
+      sequence += 1;
+      const now = Date.now();
+      const list: TaskList = {
+        id: `list-${String(sequence)}`,
+        name: trimmed,
+        color: null,
+        isDefault: false,
+        sortOrder: lists.length,
+        archivedAt: null,
+        createdAt: now,
+        updatedAt: now,
+      };
+      lists = [...lists, list];
+      emit();
+      return Promise.resolve(list);
     },
     duplicateTask(id: string) {
       const existing = findTask(id);

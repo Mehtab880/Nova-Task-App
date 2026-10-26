@@ -9,6 +9,7 @@ import {
   clearRemindersForTask,
   completeTaskById,
   createTaskWithDetails,
+  createListByName,
   currentContext,
   deleteSubtaskById,
   deleteTaskById,
@@ -17,6 +18,7 @@ import {
   loadTaskDetail,
   loadNotificationSettings,
   removeRecurrenceForTask,
+  restoreTaskById,
   saveRecurrenceForTask,
   saveReminderForTask,
   saveNotificationSettings,
@@ -33,7 +35,7 @@ import {
   type ReminderInput,
 } from './service';
 import type { TaskStore } from './store';
-import type { Subtask, Task, TaskDetail, TaskPatch, TaskSnapshot } from './types';
+import type { Subtask, Task, TaskDetail, TaskList, TaskPatch, TaskSnapshot } from './types';
 
 export function createSqliteTaskStore(): TaskStore {
   const listeners = new Set<() => void>();
@@ -108,6 +110,17 @@ export function createSqliteTaskStore(): TaskStore {
     async archiveTask(id: string): Promise<void> {
       await archiveTaskById(id, context());
       afterMutation('task-archived');
+    },
+
+    async restoreTask(id: string): Promise<void> {
+      await restoreTaskById(id, context());
+      afterMutation('task-restored');
+    },
+
+    async createList(name: string): Promise<TaskList> {
+      const list = await createListByName(name, context());
+      afterMutation('list-created');
+      return list;
     },
 
     async duplicateTask(id: string): Promise<Task> {

@@ -17,6 +17,7 @@ import { TaskStoreProvider } from '../TaskStoreProvider';
 import type { Task, TaskPriority } from '../types';
 import { TaskEditorScreen } from './TaskEditorScreen';
 import { TaskListScreen } from './TaskListScreen';
+import { TaskDetailScreen } from './TaskDetailScreen';
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
 
@@ -88,7 +89,57 @@ function renderEditor(store: TaskStore): ReturnType<typeof render> {
           <Stack.Navigator initialRouteName="TaskEditor" screenOptions={{ headerShown: false }}>
             <Stack.Screen name="Main" component={StubScreen} />
             <Stack.Screen name="TaskDetail" component={StubScreen} />
+            <Stack.Screen name="Archived" component={StubScreen} />
             <Stack.Screen name="TaskEditor" component={TaskEditorScreen} initialParams={{}} />
+          </Stack.Navigator>
+        </NavigationContainer>
+      </TaskStoreProvider>
+    </ThemeProvider>,
+  );
+}
+
+function renderDetail(store: TaskStore, taskId: string): ReturnType<typeof render> {
+  return render(
+    <ThemeProvider mode="light">
+      <TaskStoreProvider store={store}>
+        <NavigationContainer>
+          <Stack.Navigator initialRouteName="TaskDetail" screenOptions={{ headerShown: false }}>
+            <Stack.Screen name="Main" component={StubScreen} />
+            <Stack.Screen name="Archived" component={StubScreen} />
+            <Stack.Screen
+              name="TaskDetail"
+              component={TaskDetailScreen}
+              initialParams={{ taskId }}
+            />
+            <Stack.Screen name="TaskEditor" component={StubScreen} />
+          </Stack.Navigator>
+        </NavigationContainer>
+      </TaskStoreProvider>
+    </ThemeProvider>,
+  );
+}
+
+function renderArchived(store: TaskStore): ReturnType<typeof render> {
+  return render(
+    <ThemeProvider mode="light">
+      <TaskStoreProvider store={store}>
+        <NavigationContainer>
+          <Stack.Navigator initialRouteName="Archived" screenOptions={{ headerShown: false }}>
+            <Stack.Screen name="Main" component={StubScreen} />
+            <Stack.Screen name="TaskDetail" component={StubScreen} />
+            <Stack.Screen name="TaskEditor" component={StubScreen} />
+            <Stack.Screen name="Archived">
+              {() => (
+                <TaskListScreen
+                  filter="archived"
+                  title="Archived"
+                  emptyTitle="No archived tasks"
+                  emptyDescription="Archived tasks can be restored from here."
+                  showAdd={false}
+                  onBack={() => undefined}
+                />
+              )}
+            </Stack.Screen>
           </Stack.Navigator>
         </NavigationContainer>
       </TaskStoreProvider>
@@ -187,5 +238,46 @@ describe('task editor', () => {
     expect(alert.props['accessibilityLiveRegion']).toBe('assertive');
     expect(screen.getByText('A reminder before the due time needs a due date.')).toBeTruthy();
     expect(store.createCalls).toHaveLength(0);
+  });
+});
+
+describe('task detail lifecycle', () => {
+  it('duplicates a task from the detail actions', async () => {
+    const user = userEvent.setup();
+    const store = createInMemoryTaskStore();
+    store.seed([makeTask({ id: 'task-a', title: 'Buy milk' })]);
+
+    await renderDetail(store, 'task-a');
+    await user.press(await screen.findByTestId('detail-duplicate-button'));
+
+    await waitFor(() => {
+      expect(store.tasks).toHaveLength(2);
+    });
+    expect(store.tasks[1]?.title).toBe('Buy milk');
+    expect(store.tasks[1]?.id).not.toBe('task-a');
+    expect(store.tasks[1]?.status).toBe('todo');
+  });
+
+  it('archives a task and restores it from the archived list', async () => {
+    const user = userEvent.setup();
+    const store = createInMemoryTaskStore();
+    store.seed([makeTask({ id: 'task-a', title: 'Buy milk' })]);
+
+    await renderDetail(store, 'task-a');
+    await user.press(await screen.findByTestId('detail-archive-button'));
+
+    await waitFor(() => {
+      expect(store.tasks[0]?.archivedAt).not.toBeNull();
+    });
+
+    await renderArchived(store);
+    expect(await screen.findByText('Buy milk')).toBeTruthy();
+    expect(screen.getByTestId('list-back-button')).toBeTruthy();
+
+    await store.restoreTask('task-a');
+    await waitFor(() => {
+      expect(store.tasks[0]?.archivedAt).toBeNull();
+      expect(screen.queryByText('Buy milk')).toBeNull();
+    });
   });
 });

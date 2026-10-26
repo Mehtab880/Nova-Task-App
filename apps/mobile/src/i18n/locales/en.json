@@ -42,6 +42,9 @@
     },
     "nova": {
       "title": "Settings"
+    },
+    "archived": {
+      "title": "Archived"
     }
   },
   "tasks": {
@@ -86,7 +89,9 @@
       "inboxTitle": "No tasks yet",
       "inboxDescription": "Create your first task to get started.",
       "upcomingTitle": "Nothing scheduled ahead",
-      "upcomingDescription": "Tasks with a future date will appear here."
+      "upcomingDescription": "Tasks with a future date will appear here.",
+      "archivedTitle": "No archived tasks",
+      "archivedDescription": "Archived tasks can be restored from here."
     },
     "state": {
       "loading": "Loading tasks…",
@@ -103,6 +108,8 @@
       "complete": "Complete",
       "skip": "Skip occurrence",
       "archive": "Archive",
+      "restore": "Restore",
+      "duplicate": "Duplicate",
       "done": "Done",
       "retry": "Try again"
     },
@@ -173,6 +180,9 @@
       "status": "Status: {{status}}",
       "completed": "Completed",
       "completeHint": "Marks the task complete and advances a recurring series",
+      "archiveHint": "Hides the task from active lists without deleting it",
+      "restoreHint": "Moves the task back into active lists",
+      "duplicateHint": "Creates a copy of this task with its subtasks",
       "skipHint": "Skips this occurrence and keeps the series",
       "reminderHeading": "Reminder",
       "reminderState": "Schedule: {{state}}",
@@ -271,6 +281,18 @@
     "subtitle": "Reminders, recurrence, and notification health.",
     "saved": "Settings saved.",
     "synced": "Notification schedules reconciled from storage.",
+    "organise": {
+      "heading": "Organise",
+      "archived": "Archived tasks ({{count}})"
+    },
+    "lists": {
+      "heading": "Lists",
+      "default": "Default",
+      "custom": "Custom",
+      "nameLabel": "New list name",
+      "add": "Add list",
+      "created": "List created."
+    },
     "permissions": {
       "heading": "Permissions",
       "notifications": "Notifications",

@@ -1,3 +1,5 @@
+import { useNavigation } from '@react-navigation/native';
+import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useCallback, useEffect, useState } from 'react';
 import { ScrollView, Switch, TextInput, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -6,6 +8,7 @@ import { useTranslation } from 'react-i18next';
 import { AppButton } from '@/design/AppButton';
 import { AppText } from '@/design/AppText';
 import { useTheme } from '@/design/ThemeProvider';
+import type { RootStackParamList } from '@/navigation/types';
 import type { NotificationSettings } from '@/notifications/types';
 import {
   openExactAlarmSettings,
@@ -25,6 +28,7 @@ export function SettingsScreen(): React.JSX.Element {
   const theme = useTheme();
   const insets = useSafeAreaInsets();
   const { t } = useTranslation();
+  const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
   const store = useTaskStore();
   const revision = useStoreRevision();
   const { status, snapshot, error, reload } = useTaskSnapshot('inbox');
@@ -32,6 +36,7 @@ export function SettingsScreen(): React.JSX.Element {
   const [settings, setSettings] = useState<NotificationSettings | null>(null);
   const [quietStart, setQuietStart] = useState('22:00');
   const [quietEnd, setQuietEnd] = useState('07:00');
+  const [newListName, setNewListName] = useState('');
   const [message, setMessage] = useState<string | null>(null);
   const [actionError, setActionError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
@@ -76,6 +81,18 @@ export function SettingsScreen(): React.JSX.Element {
       })
       .catch(fail)
       .finally(() => setBusy(false));
+  };
+
+  const handleCreateList = (): void => {
+    const name = newListName.trim();
+    if (name.length === 0) return;
+    run(
+      () =>
+        store.createList(name).then(() => {
+          setNewListName('');
+        }),
+      t('settings.lists.created'),
+    );
   };
 
   const saveQuietHours = (enabled: boolean): void => {
@@ -201,6 +218,43 @@ export function SettingsScreen(): React.JSX.Element {
                 });
               }}
               disabled={busy}
+            />
+          </View>
+        </Section>
+
+        <Section title={t('settings.organise.heading')}>
+          <AppButton
+            label={t('settings.organise.archived', {
+              count: snapshot?.archivedCount ?? 0,
+            })}
+            variant="secondary"
+            onPress={() => navigation.navigate('Archived')}
+            disabled={busy}
+            testID="open-archived-button"
+          />
+          <AppText variant="label" color="textMuted">
+            {t('settings.lists.heading')}
+          </AppText>
+          {(snapshot?.lists ?? []).map(list => (
+            <Row
+              key={list.id}
+              label={list.name}
+              value={list.isDefault ? t('settings.lists.default') : t('settings.lists.custom')}
+            />
+          ))}
+          <View style={{ flexDirection: 'row', alignItems: 'flex-end', gap: theme.spacing.sm }}>
+            <View style={{ flex: 1 }}>
+              <LabeledInput
+                label={t('settings.lists.nameLabel')}
+                value={newListName}
+                onChangeText={setNewListName}
+              />
+            </View>
+            <AppButton
+              label={t('settings.lists.add')}
+              onPress={handleCreateList}
+              disabled={busy || newListName.trim().length === 0}
+              testID="add-list-button"
             />
           </View>
         </Section>
