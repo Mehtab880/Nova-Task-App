@@ -224,15 +224,19 @@ internal class ReminderScheduler(
 
         val activeIds = active.map { it.id }.toSet()
         val activeById = active.associateBy { it.id }
-        // Request codes are reused only after a row is deleted, so an old alarm
-        // may share a code with a newly created reminder. Never cancel a code
-        // that is still in use by an active reminder.
+        // A dropped schedule never keeps its id, but its request code can be
+        // reused by a different schedule when the new plan is built. The alarm
+        // PendingIntent is keyed on id + code, so cancel by the old id even when
+        // the code is now in use; only the notification cancel has to be skipped
+        // in that case or it would dismiss the replacement notification.
         val activeCodes = active.map { it.requestCode }.toSet()
         previous.values
-            .filter { it.id !in activeIds && it.requestCode !in activeCodes }
+            .filter { it.id !in activeIds }
             .forEach { old ->
                 ReminderIntents.cancelAlarm(appContext, old.id, old.requestCode)
-                notifier.cancel(old)
+                if (old.requestCode !in activeCodes) {
+                    notifier.cancel(old)
+                }
             }
         previous.values
             .filter { old ->

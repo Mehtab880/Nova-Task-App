@@ -1086,8 +1086,9 @@ export async function saveReminderForTask(
     if (keep === undefined) {
       reminder = await insertReminderDefinition(db, taskId, input, context.now);
     } else {
-      // Editing keeps the reminder id so reminder_event history stays linked; the
-      // stale schedules are dropped and rebuilt by the next reconcile pass.
+      // Editing keeps the reminder id so reminder_event history stays linked. The
+      // stale schedules are left for the reconcile plan to drop, which keeps their
+      // request codes reserved until the native alarm cache has been updated.
       reminder = {
         ...keep,
         ...normalized,
@@ -1096,9 +1097,7 @@ export async function saveReminderForTask(
         updatedAt: context.now,
       };
       await updateReminderRow(db, reminder);
-      await db.execute('DELETE FROM notification_schedule WHERE reminder_id = ?', [keep.id]);
       for (const duplicate of duplicates) {
-        await db.execute('DELETE FROM notification_schedule WHERE reminder_id = ?', [duplicate.id]);
         await deleteReminder(db, duplicate.id);
       }
     }
