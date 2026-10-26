@@ -34,6 +34,7 @@ export function SettingsScreen(): React.JSX.Element {
   const { status, snapshot, error, reload } = useTaskSnapshot('inbox');
 
   const [settings, setSettings] = useState<NotificationSettings | null>(null);
+  const [quietEnabled, setQuietEnabled] = useState(false);
   const [quietStart, setQuietStart] = useState('22:00');
   const [quietEnd, setQuietEnd] = useState('07:00');
   const [newListName, setNewListName] = useState('');
@@ -44,6 +45,7 @@ export function SettingsScreen(): React.JSX.Element {
   const loadSettings = useCallback(async () => {
     const next = await store.loadSettings();
     setSettings(next);
+    setQuietEnabled(next.quietHoursEnabled);
     setQuietStart(next.quietHoursStart);
     setQuietEnd(next.quietHoursEnd);
   }, [store]);
@@ -55,6 +57,7 @@ export function SettingsScreen(): React.JSX.Element {
       .then(next => {
         if (cancelled) return;
         setSettings(next);
+        setQuietEnabled(next.quietHoursEnabled);
         setQuietStart(next.quietHoursStart);
         setQuietEnd(next.quietHoursEnd);
       })
@@ -111,6 +114,15 @@ export function SettingsScreen(): React.JSX.Element {
           .then(loadSettings),
       t('settings.saved'),
     );
+  };
+
+  // Set the switch state before the async save lands. A controlled Switch that
+  // keeps the old value while the write is in flight gets reset to it by the
+  // next render, which fired a second valueChange(false) and turned quiet hours
+  // straight back off.
+  const handleQuietHoursToggle = (enabled: boolean): void => {
+    setQuietEnabled(enabled);
+    saveQuietHours(enabled);
   };
 
   if (status === 'loading' || settings === null) {
@@ -268,12 +280,12 @@ export function SettingsScreen(): React.JSX.Element {
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: theme.spacing.md }}>
             <Switch
               accessibilityLabel={t('settings.quiet.toggle')}
-              value={settings.quietHoursEnabled}
-              onValueChange={value => saveQuietHours(value)}
+              value={quietEnabled}
+              onValueChange={handleQuietHoursToggle}
               testID="quiet-hours-toggle"
             />
             <AppText variant="body" style={{ flex: 1 }}>
-              {settings.quietHoursEnabled ? t('common.on') : t('common.off')}
+              {quietEnabled ? t('common.on') : t('common.off')}
             </AppText>
           </View>
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: theme.spacing.md }}>
@@ -291,7 +303,7 @@ export function SettingsScreen(): React.JSX.Element {
           <AppButton
             label={t('settings.quiet.save')}
             variant="secondary"
-            onPress={() => saveQuietHours(settings.quietHoursEnabled)}
+            onPress={() => saveQuietHours(quietEnabled)}
             disabled={busy}
           />
         </Section>
