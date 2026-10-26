@@ -248,6 +248,8 @@ export function SettingsScreen(): React.JSX.Element {
                 label={t('settings.lists.nameLabel')}
                 value={newListName}
                 onChangeText={setNewListName}
+                placeholder={t('settings.lists.namePlaceholder')}
+                maxLength={80}
               />
             </View>
             <AppButton
@@ -394,10 +396,14 @@ function LabeledInput({
   label,
   value,
   onChangeText,
+  placeholder = 'HH:mm',
+  maxLength = 5,
 }: {
   readonly label: string;
   readonly value: string;
   readonly onChangeText: (value: string) => void;
+  readonly placeholder?: string;
+  readonly maxLength?: number;
 }): React.JSX.Element {
   const theme = useTheme();
   return (
@@ -409,9 +415,9 @@ function LabeledInput({
         accessibilityLabel={label}
         value={value}
         onChangeText={onChangeText}
-        placeholder="HH:mm"
+        placeholder={placeholder}
         autoCapitalize="none"
-        maxLength={5}
+        maxLength={maxLength}
         style={{
           minHeight: 48,
           borderRadius: theme.radius.md,

@@ -290,6 +290,7 @@
       "default": "Default",
       "custom": "Custom",
       "nameLabel": "New list name",
+      "namePlaceholder": "e.g. Work",
       "add": "Add list",
       "created": "List created."
     },
