@@ -154,7 +154,7 @@ Use one row per case per run. Status values: `Pending`, `Pass`, `Fail`,
 | 6   | Duplicate         | Duplicate a task with a reminder and recurrence.                           | New row with a new id; title/notes/dates copied; no duplicate occurrence rows; no duplicate alarms.         | Task + schedule rows          | Pass (2026-10-26, NOTE 24 / API 33) |
 | 7   | Move list         | Create a second list, move the task through the editor.                    | `list_id` changes; detail shows the new list name; reminders stay attached.                                 | Task row                      | Pass (2026-10-26, NOTE 24 / API 33) |
 | 8   | Subtasks          | Add two subtasks, toggle one, remove the other.                            | Rows persist with `is_completed`; progress label updates; removal is soft (`deleted_at`).                   | Subtask rows, screenshot      | Pending                             |
-| 9   | Reminder CRUD     | Add 10 min before -> edit to At due -> remove.                             | One `reminder` row changes `offset_minutes`; removal cancels the schedule and alarm; no orphan rows.        | Reminder + schedule rows      | Pending                             |
+| 9   | Reminder CRUD     | Add 10 min before -> edit to At due -> remove.                             | One `reminder` row changes `offset_minutes`; removal cancels the schedule and alarm; no orphan rows.        | Reminder + schedule rows      | Pass (2026-10-26, NOTE 24 / API 33) |
 
 ### Reminders and reconciliation
 
