@@ -119,23 +119,30 @@ Copy this block for each device/run.
 Each directory under `artifacts/device/` holds `nova.db` (plus WAL), `alarms.txt`,
 `notifications.txt`, `exact-alarm.txt`, `app.txt`, and `screen.png`.
 
-| Case | Evidence directory | What it shows                                                                                                  |
-| ---- | ------------------ | -------------------------------------------------------------------------------------------------------------- |
-| 1    | `20261026-131329`  | `Case 1 task` row with notes, `priority=high`, `due_date=2026-10-26`, `due_time=09:00` (floating strings).     |
-| 2    | `20261026-131329`  | Same task id before the edit.                                                                                  |
-| 2    | `20261026-131552`  | Same id after the edit: `Case 1 task v2`, `due_date=2026-10-27`, `due_time=10:30`, `priority=urgent`; 1 row.   |
-| 3    | `20261026-131621`  | Checkbox tap: `status=done`, `completed_at=1793002574218`, Inbox drops to `0 tasks`, undo banner.              |
-| 3    | `20261026-131638`  | After Undo: same id back to `status=todo`, `completed_at=null`.                                                |
-| 4    | `20261026-131741`  | Reminder added to the task before deleting (`At due time`).                                                    |
-| 4    | `20261026-131808`  | `deleted_at=1793002680300`, reminder `status=cancelled`, `notification_schedule` empty.                        |
-| 4    | `20261026-131836`  | After Undo: `deleted_at=null`, reminder `scheduled`, exact schedule restored with the same reminder id.        |
-| 14   | `20261026-122221`  | Task `done` + `completed_at`, schedule row cancelled, `notification-complete` event; notification archived.    |
-| 5    | `20261026-124318`  | Archived list screenshot (`1 task`), `archived_at=1793000575782`; visible rows drop to 11.                     |
-| 5    | `20261026-124349`  | After restore: no archived rows, visible rows back to 12, detail shows `Archive` again.                        |
-| 6    | `20261026-124154`  | Pre-duplicate: 2 reminders, 10 schedules, 1 rule, 10 occurrences; 10 `RTC_WAKEUP` alarms.                      |
-| 6    | `20261026-124210`  | Copy `task_01M5VJHGZTEBTRP6M0KT7VWQ82`, `series_id=null`; reminder/schedule/rule/occurrence counts unchanged.  |
-| 7    | `20261026-123831`  | Lists `Inbox` + `Workk`; moved task row `list_id=list_01M5VJ2B1Z8KQYM8RZ3E987KG1`.                             |
-| 7    | `20261026-124525`  | Occurrence moved to `Workk`; reminder definition and all 10 exact schedules unchanged; 10 `RTC_WAKEUP` alarms. |
+| Case | Evidence directory | What it shows                                                                                                    |
+| ---- | ------------------ | ---------------------------------------------------------------------------------------------------------------- |
+| 1    | `20261026-131329`  | `Case 1 task` row with notes, `priority=high`, `due_date=2026-10-26`, `due_time=09:00` (floating strings).       |
+| 2    | `20261026-131329`  | Same task id before the edit.                                                                                    |
+| 2    | `20261026-131552`  | Same id after the edit: `Case 1 task v2`, `due_date=2026-10-27`, `due_time=10:30`, `priority=urgent`; 1 row.     |
+| 3    | `20261026-131621`  | Checkbox tap: `status=done`, `completed_at=1793002574218`, Inbox drops to `0 tasks`, undo banner.                |
+| 3    | `20261026-131638`  | After Undo: same id back to `status=todo`, `completed_at=null`.                                                  |
+| 4    | `20261026-131741`  | Reminder added to the task before deleting (`At due time`).                                                      |
+| 4    | `20261026-131808`  | `deleted_at=1793002680300`, reminder `status=cancelled`, `notification_schedule` empty.                          |
+| 4    | `20261026-131836`  | After Undo: `deleted_at=null`, reminder `scheduled`, exact schedule restored with the same reminder id.          |
+| 10   | `20261026-132353`  | Pre-fire: schedule at 13:26, `state=exact`, `status=scheduled`, one `RTC_WAKEUP` alarm.                          |
+| 10   | `20261026-132646`  | 13:26:42: notification `Case 10 exact` posted (live `NotificationRecord`), alarm consumed. `shade.png` shows it. |
+| 11   | `20261026-132819`  | `SCHEDULE_EXACT_ALARM: deny`; settings screen reads `Exact alarms: Denied (inexact fallback)`.                   |
+| 11   | `20261026-132900`  | New reminder schedules with `state=inexact` after the app-op change; alarm still one `RTC_WAKEUP`.               |
+| 12   | `20261026-133949`  | Quiet hours enabled (`quiet_hours_enabled=true`) after the switch fix.                                           |
+| 12   | `20261026-134419`  | Task due `22:30`; schedule moved to `2026-10-27 07:00` (end of window) with an exact alarm.                      |
+| 12   | `20261026-134443`  | Detail shows `Next: Tue, Oct 27 at 7:00 AM`; task still `10:30 PM`, reminder `offset_minutes=0`.                 |
+| 14   | `20261026-122221`  | Task `done` + `completed_at`, schedule row cancelled, `notification-complete` event; notification archived.      |
+| 5    | `20261026-124318`  | Archived list screenshot (`1 task`), `archived_at=1793000575782`; visible rows drop to 11.                       |
+| 5    | `20261026-124349`  | After restore: no archived rows, visible rows back to 12, detail shows `Archive` again.                          |
+| 6    | `20261026-124154`  | Pre-duplicate: 2 reminders, 10 schedules, 1 rule, 10 occurrences; 10 `RTC_WAKEUP` alarms.                        |
+| 6    | `20261026-124210`  | Copy `task_01M5VJHGZTEBTRP6M0KT7VWQ82`, `series_id=null`; reminder/schedule/rule/occurrence counts unchanged.    |
+| 7    | `20261026-123831`  | Lists `Inbox` + `Workk`; moved task row `list_id=list_01M5VJ2B1Z8KQYM8RZ3E987KG1`.                               |
+| 7    | `20261026-124525`  | Occurrence moved to `Workk`; reminder definition and all 10 exact schedules unchanged; 10 `RTC_WAKEUP` alarms.   |
 
 ## Case checklist
 
@@ -162,7 +169,7 @@ Use one row per case per run. Status values: `Pending`, `Pass`, `Fail`,
 | --- | ---------------------------------- | ---------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------- | ----------------------------------- |
 | 10  | Exact alarm for a one-off reminder | Due in 2 minutes with a 10-minute reminder; keep the app foregrounded.             | Notification schedule row `scheduled`; `dumpsys alarm` shows one exact alarm; notification posts at the reminder time.                                                                                         | Schedule row, alarm dump          | Pending                             |
 | 11  | Inexact fallback                   | Revoke Alarms & reminders -> create another reminder.                              | Alarm schedules inexactly, no crash, notification may be delayed; diagnostics/settings shows exact denied.                                                                                                     | Alarm dump, screenshot            | Pass (2026-10-26, NOTE 24 / API 33) |
-| 12  | Quiet hours deferral               | Enable quiet hours 22:00-07:00 -> set a task reminder at 22:30 local.              | Schedule moves to 07:00 the next day; SQLite retains the original reminder; the deferred trigger is shown.                                                                                                     | Schedule row, screenshot          | Pending                             |
+| 12  | Quiet hours deferral               | Enable quiet hours 22:00-07:00 -> set a task reminder at 22:30 local.              | Schedule moves to 07:00 the next day; SQLite retains the original reminder; the deferred trigger is shown.                                                                                                     | Schedule row, screenshot          | Pass (2026-10-26, NOTE 24 / API 33) |
 | 13  | Snooze overrides quiet hours       | Fire a reminder during quiet hours -> Snooze from the notification.                | New trigger is exactly `now + snooze`, not moved to the end of quiet hours; old notification disappears.                                                                                                       | Before/after schedule row         | Pending                             |
 | 14  | Complete from notification         | Fire a reminder -> tap Complete.                                                   | Task becomes `done`; schedule row cancelled; the shared `reminder` row stays `scheduled` (recurrence reuses it); a `notification-complete` `reminder_event` is written; notification disappears; queue drains. | Task/reminder/schedule/event rows | Pass (2026-10-26, NOTE 24 / API 33) |
 | 15  | Reconcile on app start             | Create reminders -> force-stop -> relaunch.                                        | On launch, SQLite rows are replayed into the native cache; missing alarms are recreated; no duplicates.                                                                                                        | Alarm dump before/after           | Pending                             |
