@@ -22,10 +22,12 @@ import { normalizeRecurrencePattern } from '@/recurrence/engine';
 import { isValidLocalDate, isValidLocalTime, localDateInZone } from '@/recurrence/time';
 import type { RecurrencePattern, RecurrenceRule } from '@/recurrence/types';
 import {
+  deleteReminder,
   insertReminder,
   listReminders,
   listSchedules,
   readSettings,
+  updateReminderRow,
 } from '@/notifications/repository';
 import type { NotificationSettings, ReminderDefinition } from '@/notifications/types';
 import { systemClock } from '@/core/time/Clock';
@@ -1077,10 +1079,29 @@ export async function saveReminderForTask(
       });
     }
     const existing = (await listReminders(db)).filter(reminder => reminder.taskId === taskId);
-    for (const reminder of existing) {
-      await db.execute('DELETE FROM reminder WHERE id = ?', [reminder.id]);
+    const normalized = normalizeReminderInput(input);
+    const [keep, ...duplicates] = existing;
+
+    let reminder: ReminderDefinition;
+    if (keep === undefined) {
+      reminder = await insertReminderDefinition(db, taskId, input, context.now);
+    } else {
+      // Editing keeps the reminder id so reminder_event history stays linked; the
+      // stale schedules are dropped and rebuilt by the next reconcile pass.
+      reminder = {
+        ...keep,
+        ...normalized,
+        status: 'scheduled',
+        snoozeUntil: null,
+        updatedAt: context.now,
+      };
+      await updateReminderRow(db, reminder);
+      await db.execute('DELETE FROM notification_schedule WHERE reminder_id = ?', [keep.id]);
+      for (const duplicate of duplicates) {
+        await db.execute('DELETE FROM notification_schedule WHERE reminder_id = ?', [duplicate.id]);
+        await deleteReminder(db, duplicate.id);
+      }
     }
-    const reminder = await insertReminderDefinition(db, taskId, input, context.now);
     assertRelativeReminderHasDue(reminder, task);
     return reminder;
   });

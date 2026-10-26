@@ -43,7 +43,11 @@ export function TaskRow({
     repeat,
     subtasks.length === 0
       ? null
-      : t('tasks.subtasks.progress', { done: completedSubtasks, total: subtasks.length }),
+      : t('tasks.subtasks.progress', {
+          done: completedSubtasks,
+          total: subtasks.length,
+          count: subtasks.length,
+        }),
   ]
     .filter((part): part is string => typeof part === 'string' && part.length > 0)
     .join('. ');
@@ -142,6 +146,7 @@ export function TaskRow({
               {t('tasks.subtasks.progress', {
                 done: completedSubtasks,
                 total: subtasks.length,
+                count: subtasks.length,
               })}
             </AppText>
           )}

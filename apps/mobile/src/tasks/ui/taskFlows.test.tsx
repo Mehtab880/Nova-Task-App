@@ -164,6 +164,29 @@ describe('task list interactions', () => {
     );
   });
 
+  it('uses a singular progress label for one subtask', async () => {
+    const store = createInMemoryTaskStore();
+    store.seed(
+      [makeTask({ id: 'task-a', title: 'Buy milk' })],
+      [
+        {
+          id: 'subtask-a',
+          taskId: 'task-a',
+          title: 'Oat milk',
+          isCompleted: false,
+          sortOrder: 0,
+          deletedAt: null,
+          createdAt: 0,
+          updatedAt: 0,
+        },
+      ],
+    );
+
+    await renderInbox(store);
+
+    expect(await screen.findByText('0 of 1 subtask')).toBeTruthy();
+  });
+
   it('completes a task and restores it through undo', async () => {
     const user = userEvent.setup();
     const store = createInMemoryTaskStore();

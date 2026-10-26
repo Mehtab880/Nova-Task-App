@@ -310,6 +310,7 @@ export function TaskDetailScreen(): React.JSX.Element {
               {t('tasks.subtasks.progress', {
                 done: completedSubtasks,
                 total: subtasks.length,
+                count: subtasks.length,
               })}
             </AppText>
           )}

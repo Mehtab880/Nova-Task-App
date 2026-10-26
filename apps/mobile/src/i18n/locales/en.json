@@ -270,7 +270,8 @@
     "subtasks": {
       "title": "Subtasks",
       "empty": "No subtasks yet.",
-      "progress": "{{done}} of {{total}} subtasks",
+      "progress_one": "{{done}} of {{total}} subtask",
+      "progress_other": "{{done}} of {{total}} subtasks",
       "toggle": "Toggle subtask {{title}}",
       "remove": "Remove",
       "removeA11y": "Remove subtask {{title}}",
