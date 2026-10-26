@@ -9,7 +9,12 @@ import { AppButton } from '@/design/AppButton';
 import { AppText } from '@/design/AppText';
 import { useTheme } from '@/design/ThemeProvider';
 import type { RootStackParamList } from '@/navigation/types';
-import { formatLocalDateLabel, formatLocalTimeLabel } from '@/recurrence/time';
+import {
+  formatLocalDateLabel,
+  formatLocalTimeLabel,
+  localDateInZone,
+  localTimeInZone,
+} from '@/recurrence/time';
 
 import { useTaskStore } from '../store';
 import { useTaskDetail } from '../useTaskDetail';
@@ -491,10 +496,10 @@ export function TaskDetailScreen(): React.JSX.Element {
                 <AppText variant="bodySmall" color="textMuted">
                   {t('tasks.detail.reminderNext', {
                     when: formatLocalDateLabel(
-                      new Date(reminder.nextTriggerAt).toISOString().slice(0, 10),
+                      localDateInZone(reminder.nextTriggerAt, detail.timezone),
                     ),
                     time: formatLocalTimeLabel(
-                      new Date(reminder.nextTriggerAt).toISOString().slice(11, 16),
+                      localTimeInZone(reminder.nextTriggerAt, detail.timezone),
                     ),
                   })}
                 </AppText>

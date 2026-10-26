@@ -1369,6 +1369,7 @@ export async function loadTaskDetail(query: TaskDetailQuery): Promise<TaskDetail
       recurrence: recurrenceByTask[task.id] ?? recurrenceByTask[ownerId] ?? null,
       listName,
       today,
+      timezone: query.timeZone,
     };
   });
 }

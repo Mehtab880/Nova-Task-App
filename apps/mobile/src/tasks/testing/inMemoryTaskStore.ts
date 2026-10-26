@@ -166,6 +166,7 @@ export function createInMemoryTaskStore(options: InMemoryTaskStoreOptions = {}):
     recurrence: null,
     listName: lists.find(list => list.id === task.listId)?.name ?? null,
     today,
+    timezone: Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC',
   });
 
   return {

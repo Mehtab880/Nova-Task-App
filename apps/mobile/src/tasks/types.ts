@@ -138,6 +138,8 @@ export interface TaskDetail {
   readonly recurrence: RecurrenceStatusSummary | null;
   readonly listName: string | null;
   readonly today: string;
+  /** Time zone the reminder timestamps should be rendered in. */
+  readonly timezone: string;
 }
 
 export interface TaskSnapshot {
