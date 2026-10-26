@@ -8,3 +8,4 @@ android/build
 android/app/build
 *.lock
 pnpm-lock.yaml
+*.ps1
