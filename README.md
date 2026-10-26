@@ -191,6 +191,12 @@ run, so the 46 M5 device cases in
 [`docs/m5-device-verification-pack.md`](docs/m5-device-verification-pack.md)
 remain pending.
 
+CI evidence (2026-10-26): GitHub Actions run #5 on `67e7126` is green. The
+quality job passes typecheck, lint, format, Jest (120 tests), fonts,
+Android configuration, and gitleaks; the Android job passes
+`:app:testDevDebugUnitTest`, `assembleDevDebug`, `assembleStagingDebug`,
+`assembleProdRelease`, the targetSdk 36 APK check, and artifact upload.
+
 Release-signing checks: the no-keystore release build printed the
 NON-DISTRIBUTABLE warning and produced a `CN=Android Debug` APK;
 `-PrequireReleaseSigning=true` failed configuration without a keystore; and a
