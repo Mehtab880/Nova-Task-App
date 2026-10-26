@@ -106,6 +106,28 @@ Copy this block for each device/run.
   filtered `dumpsys alarm`/`dumpsys notification` output, the exact-alarm
   app-op, and a screenshot into `artifacts/device/<timestamp>/`, then prints a
   row summary.
+- `dumpsys notification` also prints the notification archive. Entries that
+  appear after the `mArchive=Archive (N notifications)` header are already
+  cancelled, so a reminder id there means the notification was dismissed, not
+  that it is still in the shade.
+- A `notification_schedule.state` of `exact` means the exact alarm was
+  accepted; `dumpsys alarm` must show a matching `RTC_WAKEUP` entry per
+  scheduled occurrence.
+
+## Captured evidence (2026-10-26, NOTE 24 / API 33)
+
+Each directory under `artifacts/device/` holds `nova.db` (plus WAL), `alarms.txt`,
+`notifications.txt`, `exact-alarm.txt`, `app.txt`, and `screen.png`.
+
+| Case | Evidence directory | What it shows                                                                                                  |
+| ---- | ------------------ | -------------------------------------------------------------------------------------------------------------- |
+| 14   | `20261026-122221`  | Task `done` + `completed_at`, schedule row cancelled, `notification-complete` event; notification archived.    |
+| 5    | `20261026-124318`  | Archived list screenshot (`1 task`), `archived_at=1793000575782`; visible rows drop to 11.                     |
+| 5    | `20261026-124349`  | After restore: no archived rows, visible rows back to 12, detail shows `Archive` again.                        |
+| 6    | `20261026-124154`  | Pre-duplicate: 2 reminders, 10 schedules, 1 rule, 10 occurrences; 10 `RTC_WAKEUP` alarms.                      |
+| 6    | `20261026-124210`  | Copy `task_01M5VJHGZTEBTRP6M0KT7VWQ82`, `series_id=null`; reminder/schedule/rule/occurrence counts unchanged.  |
+| 7    | `20261026-123831`  | Lists `Inbox` + `Workk`; moved task row `list_id=list_01M5VJ2B1Z8KQYM8RZ3E987KG1`.                             |
+| 7    | `20261026-124525`  | Occurrence moved to `Workk`; reminder definition and all 10 exact schedules unchanged; 10 `RTC_WAKEUP` alarms. |
 
 ## Case checklist
 
@@ -114,17 +136,17 @@ Use one row per case per run. Status values: `Pending`, `Pass`, `Fail`,
 
 ### Tasks
 
-| #   | Case              | Steps                                                                      | Expected result                                                                                             | Evidence                      | Status  |
-| --- | ----------------- | -------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------- | ----------------------------- | ------- |
-| 1   | Create task       | Inbox -> New task -> title, notes, High priority, due today 09:00 -> Save. | Row exists with `status=todo`, `due_date`/`due_time` as floating strings; list shows the task and priority. | `nova.db` task row            | Pending |
-| 2   | Edit task         | Open the task -> Edit -> change title, date, time, priority -> Save.       | One row updated with new values; no duplicate; list reflects the edit.                                      | Before/after task row         | Pending |
-| 3   | Complete + undo   | Tap the row checkbox, then Undo on the banner.                             | `status=done` + `completed_at`, row leaves Inbox; undo restores `todo` and the same row id.                 | Rows before/after, screenshot | Pending |
-| 4   | Delete + undo     | Open the task -> Delete -> confirm -> Undo.                                | `deleted_at` set and reminders cancelled; undo clears `deleted_at` and restores the task.                   | Task/reminder rows            | Pending |
-| 5   | Archive + restore | Detail action -> Archive; then restore from the archived filter.           | `archived_at` set; task hidden from Inbox/Today; archived count increases; restore clears it.               | Task row, archived count      | Pending |
-| 6   | Duplicate         | Duplicate a task with a reminder and recurrence.                           | New row with a new id; title/notes/dates copied; no duplicate occurrence rows; no duplicate alarms.         | Task + schedule rows          | Pending |
-| 7   | Move list         | Create a second list, move the task through the editor.                    | `list_id` changes; detail shows the new list name; reminders stay attached.                                 | Task row                      | Pending |
-| 8   | Subtasks          | Add two subtasks, toggle one, remove the other.                            | Rows persist with `is_completed`; progress label updates; removal is soft (`deleted_at`).                   | Subtask rows, screenshot      | Pending |
-| 9   | Reminder CRUD     | Add 10 min before -> edit to At due -> remove.                             | One `reminder` row changes `offset_minutes`; removal cancels the schedule and alarm; no orphan rows.        | Reminder + schedule rows      | Pending |
+| #   | Case              | Steps                                                                      | Expected result                                                                                             | Evidence                      | Status                              |
+| --- | ----------------- | -------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------- | ----------------------------- | ----------------------------------- |
+| 1   | Create task       | Inbox -> New task -> title, notes, High priority, due today 09:00 -> Save. | Row exists with `status=todo`, `due_date`/`due_time` as floating strings; list shows the task and priority. | `nova.db` task row            | Pending                             |
+| 2   | Edit task         | Open the task -> Edit -> change title, date, time, priority -> Save.       | One row updated with new values; no duplicate; list reflects the edit.                                      | Before/after task row         | Pending                             |
+| 3   | Complete + undo   | Tap the row checkbox, then Undo on the banner.                             | `status=done` + `completed_at`, row leaves Inbox; undo restores `todo` and the same row id.                 | Rows before/after, screenshot | Pending                             |
+| 4   | Delete + undo     | Open the task -> Delete -> confirm -> Undo.                                | `deleted_at` set and reminders cancelled; undo clears `deleted_at` and restores the task.                   | Task/reminder rows            | Pending                             |
+| 5   | Archive + restore | Detail action -> Archive; then restore from the archived filter.           | `archived_at` set; task hidden from Inbox/Today; archived count increases; restore clears it.               | Task row, archived count      | Pass (2026-10-26, NOTE 24 / API 33) |
+| 6   | Duplicate         | Duplicate a task with a reminder and recurrence.                           | New row with a new id; title/notes/dates copied; no duplicate occurrence rows; no duplicate alarms.         | Task + schedule rows          | Pass (2026-10-26, NOTE 24 / API 33) |
+| 7   | Move list         | Create a second list, move the task through the editor.                    | `list_id` changes; detail shows the new list name; reminders stay attached.                                 | Task row                      | Pass (2026-10-26, NOTE 24 / API 33) |
+| 8   | Subtasks          | Add two subtasks, toggle one, remove the other.                            | Rows persist with `is_completed`; progress label updates; removal is soft (`deleted_at`).                   | Subtask rows, screenshot      | Pending                             |
+| 9   | Reminder CRUD     | Add 10 min before -> edit to At due -> remove.                             | One `reminder` row changes `offset_minutes`; removal cancels the schedule and alarm; no orphan rows.        | Reminder + schedule rows      | Pending                             |
 
 ### Reminders and reconciliation
 
