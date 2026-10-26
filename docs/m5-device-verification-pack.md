@@ -121,6 +121,14 @@ Each directory under `artifacts/device/` holds `nova.db` (plus WAL), `alarms.txt
 
 | Case | Evidence directory | What it shows                                                                                                  |
 | ---- | ------------------ | -------------------------------------------------------------------------------------------------------------- |
+| 1    | `20261026-131329`  | `Case 1 task` row with notes, `priority=high`, `due_date=2026-10-26`, `due_time=09:00` (floating strings).     |
+| 2    | `20261026-131329`  | Same task id before the edit.                                                                                  |
+| 2    | `20261026-131552`  | Same id after the edit: `Case 1 task v2`, `due_date=2026-10-27`, `due_time=10:30`, `priority=urgent`; 1 row.   |
+| 3    | `20261026-131621`  | Checkbox tap: `status=done`, `completed_at=1793002574218`, Inbox drops to `0 tasks`, undo banner.              |
+| 3    | `20261026-131638`  | After Undo: same id back to `status=todo`, `completed_at=null`.                                                |
+| 4    | `20261026-131741`  | Reminder added to the task before deleting (`At due time`).                                                    |
+| 4    | `20261026-131808`  | `deleted_at=1793002680300`, reminder `status=cancelled`, `notification_schedule` empty.                        |
+| 4    | `20261026-131836`  | After Undo: `deleted_at=null`, reminder `scheduled`, exact schedule restored with the same reminder id.        |
 | 14   | `20261026-122221`  | Task `done` + `completed_at`, schedule row cancelled, `notification-complete` event; notification archived.    |
 | 5    | `20261026-124318`  | Archived list screenshot (`1 task`), `archived_at=1793000575782`; visible rows drop to 11.                     |
 | 5    | `20261026-124349`  | After restore: no archived rows, visible rows back to 12, detail shows `Archive` again.                        |
@@ -138,10 +146,10 @@ Use one row per case per run. Status values: `Pending`, `Pass`, `Fail`,
 
 | #   | Case              | Steps                                                                      | Expected result                                                                                             | Evidence                      | Status                              |
 | --- | ----------------- | -------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------- | ----------------------------- | ----------------------------------- |
-| 1   | Create task       | Inbox -> New task -> title, notes, High priority, due today 09:00 -> Save. | Row exists with `status=todo`, `due_date`/`due_time` as floating strings; list shows the task and priority. | `nova.db` task row            | Pending                             |
-| 2   | Edit task         | Open the task -> Edit -> change title, date, time, priority -> Save.       | One row updated with new values; no duplicate; list reflects the edit.                                      | Before/after task row         | Pending                             |
-| 3   | Complete + undo   | Tap the row checkbox, then Undo on the banner.                             | `status=done` + `completed_at`, row leaves Inbox; undo restores `todo` and the same row id.                 | Rows before/after, screenshot | Pending                             |
-| 4   | Delete + undo     | Open the task -> Delete -> confirm -> Undo.                                | `deleted_at` set and reminders cancelled; undo clears `deleted_at` and restores the task.                   | Task/reminder rows            | Pending                             |
+| 1   | Create task       | Inbox -> New task -> title, notes, High priority, due today 09:00 -> Save. | Row exists with `status=todo`, `due_date`/`due_time` as floating strings; list shows the task and priority. | `nova.db` task row            | Pass (2026-10-26, NOTE 24 / API 33) |
+| 2   | Edit task         | Open the task -> Edit -> change title, date, time, priority -> Save.       | One row updated with new values; no duplicate; list reflects the edit.                                      | Before/after task row         | Pass (2026-10-26, NOTE 24 / API 33) |
+| 3   | Complete + undo   | Tap the row checkbox, then Undo on the banner.                             | `status=done` + `completed_at`, row leaves Inbox; undo restores `todo` and the same row id.                 | Rows before/after, screenshot | Pass (2026-10-26, NOTE 24 / API 33) |
+| 4   | Delete + undo     | Open the task -> Delete -> confirm -> Undo.                                | `deleted_at` set and reminders cancelled; undo clears `deleted_at` and restores the task.                   | Task/reminder rows            | Pass (2026-10-26, NOTE 24 / API 33) |
 | 5   | Archive + restore | Detail action -> Archive; then restore from the archived filter.           | `archived_at` set; task hidden from Inbox/Today; archived count increases; restore clears it.               | Task row, archived count      | Pass (2026-10-26, NOTE 24 / API 33) |
 | 6   | Duplicate         | Duplicate a task with a reminder and recurrence.                           | New row with a new id; title/notes/dates copied; no duplicate occurrence rows; no duplicate alarms.         | Task + schedule rows          | Pass (2026-10-26, NOTE 24 / API 33) |
 | 7   | Move list         | Create a second list, move the task through the editor.                    | `list_id` changes; detail shows the new list name; reminders stay attached.                                 | Task row                      | Pass (2026-10-26, NOTE 24 / API 33) |
