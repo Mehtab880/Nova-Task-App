@@ -148,6 +148,12 @@ Or all static checks:
 pnpm verify
 ```
 
+CI runs Jest through a dedicated script so the flags reach Jest on Linux:
+
+```bash
+pnpm test:ci
+```
+
 Android unit tests:
 
 ```bash
