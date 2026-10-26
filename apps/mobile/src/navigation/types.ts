@@ -9,6 +9,6 @@ export type MainTabParamList = {
 
 export type RootStackParamList = {
   Main: NavigatorScreenParams<MainTabParamList> | undefined;
-  ReminderTest: undefined;
-  ReminderDiagnostics: undefined;
+  TaskDetail: { taskId: string };
+  TaskEditor: { taskId?: string } | undefined;
 };

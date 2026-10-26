@@ -1,19 +1,29 @@
 # Nova Task
 
-Android-first task manager. This repository contains the **M0 foundation** plus the
-**M4 Android reminder proof of concept**: native alarms, SQLite-backed
-reconciliation, notifications, and dev-only test/diagnostics screens.
+Android-first task manager. This repository contains the **M0 foundation**, the
+**M4 native reminder layer**, and the **M5 task, recurrence, and reminder
+engine**: SQLite-backed tasks, subtasks, reminders, and recurrence rules, a
+materializer that keeps occurrences and native alarms in sync, and a minimal
+accessible UI.
 
-> **M4 status: Implementation complete. Device verification pending.**
-> Do not treat M4 as complete until all 25 cases in
-> [`docs/m4-device-verification-pack.md`](docs/m4-device-verification-pack.md)
+> **M5 status: Implementation complete. Device verification pending.**
+> Do not treat M5 as complete until all 46 cases in
+> [`docs/m5-device-verification-pack.md`](docs/m5-device-verification-pack.md)
 > pass on the required physical devices.
+>
+> M4 was verified by the user on a physical Android device (notifications with
+> the screen off, background and process-gone delivery, the 200 cap,
+> notification actions, reboot, force-stop, permission, exact-alarm fallback,
+> and time-zone changes). The M4 evidence format and 25-case archive remain in
+> [`docs/m4-device-verification-pack.md`](docs/m4-device-verification-pack.md).
 
-M4 intentionally contains **no full task product, AI, billing, voice capture,
-recurrence, cloud backup, or iOS support**. The four tabs remain placeholders;
-the only new product surface is the dev-only reminder tooling in the Nova tab.
+M5 intentionally contains **no AI, billing, voice capture, cloud backup/sync,
+Play subscriptions, widgets, templates, or iOS support**. The UI is deliberately
+minimal: task lists, an editor sheet, task detail, recurrence controls, and
+notification settings.
 
-Device verification: [`pack`](docs/m4-device-verification-pack.md) ·
+Device verification: [`M5 pack`](docs/m5-device-verification-pack.md) ·
+[`M4 pack`](docs/m4-device-verification-pack.md) ·
 [`commands`](docs/m4-device-commands.md) · [`matrix`](docs/m4-test-matrix.md).
 Release signing: [`signing`](docs/android-release-signing.md).
 
@@ -98,8 +108,9 @@ pnpm start
 pnpm android:dev
 ```
 
-The dev flavor exposes **Nova → Developer tools** for the M4 reminder test lab
-and diagnostics. Staging and prod do not register those screens.
+The **Nova** tab opens M5 notification settings: permissions, quiet hours,
+default snooze length, and reconciliation health. The M4 dev-only test lab and
+diagnostics screens were replaced by the M5 runtime and SQLite-backed settings.
 
 Other flavors:
 
@@ -110,11 +121,11 @@ pnpm android:prod      # com.novatask.app
 
 Flavor matrix:
 
-| Flavor  | Application ID             | Launcher name     | M4 dev tools | M0 spike                                 | Cleartext  |
-| ------- | -------------------------- | ----------------- | ------------ | ---------------------------------------- | ---------- |
-| dev     | `com.novatask.app.dev`     | Nova Task Dev     | enabled      | enabled when `NOVA_ENABLE_M0_SPIKE=true` | debug only |
-| staging | `com.novatask.app.staging` | Nova Task Staging | never        | never                                    | no         |
-| prod    | `com.novatask.app`         | Nova Task         | never        | never                                    | no         |
+| Flavor  | Application ID             | Launcher name     | M5 UI   | M0 spike                                 | Cleartext  |
+| ------- | -------------------------- | ----------------- | ------- | ---------------------------------------- | ---------- |
+| dev     | `com.novatask.app.dev`     | Nova Task Dev     | enabled | enabled when `NOVA_ENABLE_M0_SPIKE=true` | debug only |
+| staging | `com.novatask.app.staging` | Nova Task Staging | enabled | never                                    | no         |
+| prod    | `com.novatask.app`         | Nova Task         | enabled | never                                    | no         |
 
 The native module exposes the Gradle `APP_ENV` to JS, so debug builds of staging
 and prod resolve to their real environment instead of defaulting to dev.
@@ -165,11 +176,14 @@ so local/CI smoke builds work. Pass `-PrequireReleaseSigning=true` to fail close
 **Never publish a release built with the debug key.** Full setup and CI secret
 instructions: [`docs/android-release-signing.md`](docs/android-release-signing.md).
 
-Local M4 evidence (2026-10-24, Windows/JDK 21/SDK 36):
-`assembleDevDebug`, `assembleStagingDebug`, and `assembleProdRelease` build;
-`testDevDebugUnitTest` passes; `pnpm verify` passes. The dev APK installs
-`com.novatask.app.dev`. No Android device or emulator was attached, so the 25
-device cases remain pending.
+Local M5 evidence (2026-10-26, Windows/JDK 21/SDK 36):
+`pnpm verify` passes (typecheck, ESLint, Prettier, 120 Jest tests in 18 suites,
+font and Android config checks); `:app:testDevDebugUnitTest` passes (16 JUnit
+tests, including the floating-time DST vectors). `assembleDevDebug` builds
+`com.novatask.app.dev`. No Android device was attached to the agent during this
+run, so the 46 M5 device cases in
+[`docs/m5-device-verification-pack.md`](docs/m5-device-verification-pack.md)
+remain pending.
 
 Release-signing checks: the no-keystore release build printed the
 NON-DISTRIBUTABLE warning and produced a `CN=Android Debug` APK;
@@ -177,26 +191,27 @@ NON-DISTRIBUTABLE warning and produced a `CN=Android Debug` APK;
 throwaway test keystore produced a release-signed APK with the expected
 `CN=Nova Task Test` certificate. The throwaway key and properties were removed.
 
-## M4 reminder setup on a device
+## M5 task and reminder setup on a device
 
 1. Install the dev flavor (`pnpm android:dev`).
-2. Open **Nova → Developer tools → Reminder test lab**.
-3. Tap **Allow notifications** and accept the Android 13+ prompt.
-4. If the device reports exact alarms as denied, tap **Exact alarm settings**
-   and allow alarms/reminders. Otherwise M4 uses the inexact fallback.
-5. Schedule a 10-second reminder, lock the screen, and confirm delivery.
-6. Test **Complete** and **Snooze 10 min** from the notification.
-7. Open **Reminder diagnostics** to inspect the cache, SQLite counts, power
-   state, channel state, and native action queue.
-8. Run the 25 cases with the
-   [`device verification pack`](docs/m4-device-verification-pack.md), the
-   [`device command reference`](docs/m4-device-commands.md), and the
-   [`matrix`](docs/m4-test-matrix.md).
+2. Open **Inbox → New task**, add a title, pick a due date/time, choose a
+   reminder, and optionally enable **Repeat**.
+3. Open **Nova → Permissions** and allow notifications. If exact alarms are
+   denied, tap **Exact alarm settings** and allow alarms/reminders; otherwise M5
+   uses the inexact fallback.
+4. Lock the screen and confirm delivery. Use the notification's **Complete** and
+   **Snooze** actions, then reopen the app to confirm SQLite reflects them.
+5. Change the device time zone and confirm a 09:00 task still reads 09:00 and
+   its alarm moves. Repeat around a DST boundary.
+6. Run the 46 cases with the
+   [`M5 device verification pack`](docs/m5-device-verification-pack.md). The pack
+   includes the `adb`/`sqlite3` commands for capturing task, rule, occurrence,
+   and schedule rows.
 
-**M4 remains “Implementation complete. Device verification pending” until all 25
+**M5 remains “Implementation complete. Device verification pending” until all 46
 cases pass on the required physical devices.**
 
-M4 does not request `USE_EXACT_ALARM`, `VIBRATE`, `FOREGROUND_SERVICE`, or a
+M5 does not request `USE_EXACT_ALARM`, `VIBRATE`, `FOREGROUND_SERVICE`, or a
 battery-optimization exemption.
 
 ## Build and install on a physical Android device
@@ -248,7 +263,7 @@ For a store build, create `apps/mobile/android/keystore.properties` from
 `keystore.properties.example`, point it at a real keystore, and keep both files
 out of git.
 
-## Verification checklist (M0 + M4)
+## Verification checklist (M0 + M4 + M5)
 
 Static:
 
@@ -286,17 +301,32 @@ M4 static:
 - [x] Durable native cache and action queue using synchronous commits
 - [x] Boot, app-update, time, time-zone, and exact-permission receivers
 - [x] Notification channel, runtime permission flow, and diagnostics states
-- [x] Dev-only test lab and diagnostics screens, flavor-gated by native `APP_ENV`
+- [x] Dev-only test lab and diagnostics screens in M4 (replaced by the M5 settings screen)
 - [x] Kotlin policy/unit tests and TypeScript policy/mapper/bridge tests
 - [x] `pnpm verify` and `:app:testDevDebugUnitTest` pass
 
-Device-only (see `docs/m0-spike-results.md` and `docs/m4-test-matrix.md`):
+M5 static:
+
+- [x] M5 SQLite schema and migrations for tasks, subtasks, lists, tags, reminders, recurrence, schedules, history, tombstones, settings, and drafts
+- [x] Task create/edit/complete/undo/delete/undo/archive/restore/duplicate/move/priority and subtask CRUD
+- [x] Recurrence engine: daily, weekdays, weekly single/multiple, monthly date/Nth weekday, yearly, interval, end date, end-after-N, repeat-after-completion
+- [x] Occurrence actions: complete, skip, edit one/series/following, delete one/series, with floating local dates and DST gap/overlap policy
+- [x] Reminder CRUD, exact/inexact scheduling, quiet hours, snooze, complete-from-notification, and the 200-alarm cap
+- [x] SQLite-first reconciliation on start, resume, task change, boot, time change, time-zone change, and permission change
+- [x] Recurring reminder horizon of min(14 days, 10 occurrences)
+- [x] Minimal accessible UI: lists, editor sheet, date/time and reminder pickers, recurrence editor, detail, undo, states
+- [x] 48x48dp targets, checkbox state, task-row labels, assertive error announcements
+- [x] Recurrence, lifecycle, reconciliation, component, and Kotlin floating-time tests
+
+Device-only (see `docs/m0-spike-results.md`, `docs/m4-test-matrix.md`, and
+`docs/m5-device-verification-pack.md`):
 
 - [ ] App builds and launches on a physical Android device
 - [ ] Tabs navigate and TalkBack announces role/label/selected state
 - [ ] SQLite spike: FTS5, JSON1, WAL, Luxon IANA, Hermes Intl
 - [ ] Fonts render as Plus Jakarta Sans with system font scaling capped at 2.0x
-- [ ] M4 25-case reminder matrix (notifications, actions, reboot, force stop, clock/TZ, exact fallback, cap, power saving)
+- [ ] M4 was device-verified by the user (notifications, actions, reboot, force stop, clock/TZ, exact fallback, cap, power saving)
+- [ ] M5 46-case task, recurrence, reminder, reconciliation, and accessibility matrix
 
 ## Project layout
 
@@ -308,11 +338,14 @@ apps/mobile            React Native Android app
   src/db/              nova.db client, Drizzle spike schema, M0 spike
   src/design/          semantic tokens, ThemeProvider, AppText
   src/i18n/            i18next setup and English locale
-  src/navigation/      root stack, tabs, custom tab bar, placeholders
-  src/reminders/       M4 bridge, SQLite repository, service, policy, dev UI
+  src/navigation/      root stack, tabs, custom tab bar
+  src/tasks/           M5 store, service, lifecycle, repositories, UI
+  src/recurrence/      recurrence engine, time/DST policy, materializer
+  src/notifications/   schedule projection, reconciliation, SQLite repository
+  src/reminders/       native bridge, policy, and shared types
 packages/shared        @nova/shared domain contracts (no React/RN)
 tools                  font/config/APK checks, ESLint rules, secret guard
-docs                   toolchain, ADRs, M0 spike results, M4 architecture + matrix
+docs                   toolchain, ADRs, M0 spike, M4/M5 architecture and packs
 .github/workflows      CI
 ```
 
@@ -326,10 +359,11 @@ Only public, non-secret values are inlined at bundle time:
 | `NOVA_API_BASE_URL`    | Public API origin placeholder | per-environment                    |
 | `NOVA_ENABLE_M0_SPIKE` | Dev-only SQLite spike         | `false` unless set                 |
 
-M4 dev tools follow `NOVA_APP_ENV`, which now falls back to the native Gradle
-flavor constant (`dev`, `staging`, or `prod`) instead of only `__DEV__`. Setting
-`NOVA_APP_ENV` explicitly overrides the flavor. After changing build-time values,
-restart Metro with `pnpm start -- --reset-cache`.
+M5 removed the M4 dev-only screens; every flavor exposes the same task and
+settings UI. `NOVA_APP_ENV` still falls back to the native Gradle flavor
+constant (`dev`, `staging`, or `prod`). Setting `NOVA_APP_ENV` explicitly
+overrides the flavor. After changing build-time values, restart Metro with
+`pnpm start -- --reset-cache`.
 
 ## License
 

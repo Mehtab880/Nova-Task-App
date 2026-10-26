@@ -3,8 +3,8 @@
     "name": "Nova Task"
   },
   "common": {
-    "milestone": "Milestone M4",
-    "foundation": "Notification proof of concept",
+    "milestone": "Milestone M5",
+    "foundation": "Tasks, reminders, and recurrence",
     "notImplemented": "This section arrives in a later milestone.",
     "failure": "Something went wrong. Please try again.",
     "back": "Back",
@@ -27,25 +27,291 @@
     "nova": "Nova",
     "todayHint": "Show today's tasks",
     "inboxHint": "Show the inbox",
-    "calendarHint": "Show the calendar",
-    "novaHint": "Show Nova"
+    "calendarHint": "Show upcoming tasks",
+    "novaHint": "Show settings"
   },
   "screens": {
     "today": {
-      "title": "Today",
-      "description": "Your day will live here. M4 adds reminder plumbing only."
+      "title": "Today"
     },
     "inbox": {
-      "title": "Inbox",
-      "description": "Captured tasks will land here. No task storage is enabled yet."
+      "title": "Inbox"
     },
     "calendar": {
-      "title": "Calendar",
-      "description": "Scheduling will appear here in a later milestone."
+      "title": "Upcoming"
     },
     "nova": {
-      "title": "Nova",
-      "description": "AI assistance is not enabled. M4 ships reminder infrastructure only."
+      "title": "Settings"
+    }
+  },
+  "tasks": {
+    "status": {
+      "todo": "To do",
+      "in_progress": "In progress",
+      "done": "Done",
+      "cancelled": "Cancelled"
+    },
+    "priority": {
+      "none": "No priority",
+      "low": "Low priority",
+      "medium": "Medium priority",
+      "high": "High priority",
+      "urgent": "Urgent priority"
+    },
+    "badge": {
+      "overdue": "Overdue"
+    },
+    "due": {
+      "today": "Today",
+      "tomorrow": "Tomorrow",
+      "yesterday": "Yesterday",
+      "nextWeek": "Next week",
+      "none": "No date"
+    },
+    "weekdayShort": {
+      "1": "Mon",
+      "2": "Tue",
+      "3": "Wed",
+      "4": "Thu",
+      "5": "Fri",
+      "6": "Sat",
+      "7": "Sun"
+    },
+    "list": {
+      "count": "{{count}} tasks"
+    },
+    "empty": {
+      "todayTitle": "Nothing due today",
+      "todayDescription": "Tasks due today or earlier will appear here.",
+      "inboxTitle": "No tasks yet",
+      "inboxDescription": "Create your first task to get started.",
+      "upcomingTitle": "Nothing scheduled ahead",
+      "upcomingDescription": "Tasks with a future date will appear here."
+    },
+    "state": {
+      "loading": "Loading tasks…",
+      "errorTitle": "Tasks could not be loaded",
+      "retryHint": "Reloads the task list from storage",
+      "offline": "You are offline. Changes are saved on this device and reminders still work."
+    },
+    "actions": {
+      "new": "New task",
+      "newHint": "Opens the task editor",
+      "save": "Save",
+      "delete": "Delete",
+      "edit": "Edit",
+      "complete": "Complete",
+      "skip": "Skip occurrence",
+      "archive": "Archive",
+      "done": "Done",
+      "retry": "Try again"
+    },
+    "a11y": {
+      "markComplete": "Mark {{title}} complete",
+      "markIncomplete": "Mark {{title}} incomplete",
+      "openHint": "Opens the task detail"
+    },
+    "undo": {
+      "action": "Undo",
+      "hint": "Reverses the last action",
+      "dismiss": "Dismiss",
+      "completed": "Task completed.",
+      "deleted": "Task deleted."
+    },
+    "validation": {
+      "titleRequired": "Enter a title for the task.",
+      "titleTooLong": "Titles cannot exceed 500 characters.",
+      "notesTooLong": "Notes cannot exceed 10,000 characters.",
+      "reminderNeedsDateTime": "Choose a reminder date and time.",
+      "reminderNeedsDueDate": "A reminder before the due time needs a due date.",
+      "repeatNeedsStartDate": "A repeating task needs a start date.",
+      "weekdayRequired": "Choose at least one weekday.",
+      "timeFormat": "Use a 24-hour time such as 22:00."
+    },
+    "delete": {
+      "confirmTitle": "Delete this task?",
+      "confirmBody": "You can undo this immediately after deleting.",
+      "hint": "Deletes the task and cancels its reminders"
+    },
+    "sheet": {
+      "dismiss": "Close sheet",
+      "close": "Close"
+    },
+    "editor": {
+      "createTitle": "New task",
+      "editTitle": "Edit task",
+      "titleLabel": "Title",
+      "titlePlaceholder": "e.g. Review today's plan",
+      "notesLabel": "Notes",
+      "notesPlaceholder": "Optional detail",
+      "priorityLabel": "Priority",
+      "listLabel": "List",
+      "dueLabel": "Due",
+      "reminderLabel": "Reminder",
+      "repeatLabel": "Repeat",
+      "repeatToggle": "Repeat this task",
+      "scopeLabel": "Apply changes to",
+      "scopeHint": "Choose whether this edit affects one occurrence or the whole series.",
+      "allDay": "All day",
+      "clearDate": "Clear date",
+      "scope": {
+        "one": "This occurrence",
+        "series": "Whole series",
+        "following": "This and following"
+      }
+    },
+    "detail": {
+      "title": "Task detail",
+      "editHint": "Opens the task editor",
+      "missingTitle": "Task not found",
+      "missingBody": "This task no longer exists on this device.",
+      "deletedNotice": "This task is deleted. Undo to restore it.",
+      "noDue": "No due date",
+      "due": "Due {{when}}",
+      "priority": "Priority: {{priority}}",
+      "list": "List: {{name}}",
+      "status": "Status: {{status}}",
+      "completed": "Completed",
+      "completeHint": "Marks the task complete and advances a recurring series",
+      "skipHint": "Skips this occurrence and keeps the series",
+      "reminderHeading": "Reminder",
+      "reminderState": "Schedule: {{state}}",
+      "reminderNext": "Next: {{when}} at {{time}}",
+      "recurrenceHeading": "Recurrence",
+      "recurrenceNext": "Next occurrence: {{when}}",
+      "recurrenceCompleted": "Completed occurrences: {{count}}"
+    },
+    "picker": {
+      "dateTitle": "Choose a date",
+      "timeTitle": "Choose a time",
+      "reminderTitle": "Custom reminder",
+      "customDate": "Date (YYYY-MM-DD)",
+      "customTime": "Time (HH:mm)",
+      "useCustom": "Use this value"
+    },
+    "reminder": {
+      "none": "No reminder",
+      "atDue": "At due time",
+      "custom": "Custom time",
+      "minutesBefore": "{{count}} min before",
+      "dayBefore": "1 day before",
+      "absoluteSummary": "{{date}} at {{time}}",
+      "beforeDays": "{{count}} days before",
+      "beforeHours": "{{count}} hours before",
+      "beforeMinutes": "{{count}} minutes before",
+      "status": {
+        "cancelled": "Reminder cancelled"
+      },
+      "state": {
+        "pending": "Pending",
+        "exact": "Exact alarm",
+        "inexact": "Inexact fallback",
+        "exactOverdue": "Exact, overdue",
+        "inexactOverdue": "Inexact, overdue",
+        "deferredCap": "Deferred (200 cap)",
+        "error": "Scheduling error",
+        "deliveredActive": "Notification visible",
+        "blockedNotificationPermission": "Blocked: notification permission",
+        "blockedNotificationChannel": "Blocked: channel",
+        "fired": "Fired",
+        "completed": "Completed",
+        "cancelled": "Cancelled",
+        "cacheMiss": "Cache miss fallback"
+      }
+    },
+    "recurrence": {
+      "none": "Does not repeat",
+      "enabled": "Repeats",
+      "edit": "Edit repeat",
+      "editorTitle": "Repeat",
+      "frequencyLabel": "Frequency",
+      "intervalLabel": "Every",
+      "weekdayLabel": "Weekdays",
+      "monthlyLabel": "Monthly pattern",
+      "monthlyDay": "On this date",
+      "monthlyNth": "On the nth weekday",
+      "nth": "{{count}}",
+      "nthLast": "Last",
+      "endLabel": "Ends",
+      "endNever": "Never",
+      "endDate": "On a date",
+      "endCount": "After a number of times",
+      "repeatAfterCompletion": "Repeat after completion",
+      "decrease": "Decrease",
+      "increase": "Increase",
+      "daily": "Daily",
+      "weekdays": "Every weekday",
+      "weeklyOn": "Weekly on {{days}}",
+      "monthly": "Monthly",
+      "yearly": "Yearly",
+      "summary": "Repeating",
+      "frequency": {
+        "daily": "Daily",
+        "weekdays": "Weekdays",
+        "weekly": "Weekly",
+        "monthly": "Monthly",
+        "yearly": "Yearly"
+      }
+    },
+    "subtasks": {
+      "title": "Subtasks",
+      "empty": "No subtasks yet.",
+      "progress": "{{done}} of {{total}} subtasks",
+      "toggle": "Toggle subtask {{title}}",
+      "remove": "Remove",
+      "removeA11y": "Remove subtask {{title}}",
+      "inputLabel": "New subtask",
+      "placeholder": "Add a subtask",
+      "add": "Add",
+      "checkmark": "✓"
+    }
+  },
+  "settings": {
+    "title": "Settings",
+    "subtitle": "Reminders, recurrence, and notification health.",
+    "saved": "Settings saved.",
+    "synced": "Notification schedules reconciled from storage.",
+    "permissions": {
+      "heading": "Permissions",
+      "notifications": "Notifications",
+      "exactAlarms": "Exact alarms",
+      "state": {
+        "granted": "Granted",
+        "denied": "Denied",
+        "notDetermined": "Not requested"
+      },
+      "exact": {
+        "granted": "Allowed",
+        "denied": "Denied (inexact fallback)",
+        "notApplicable": "Not required"
+      }
+    },
+    "actions": {
+      "requestPermission": "Allow notifications",
+      "openNotificationSettings": "Notification settings",
+      "openExactAlarmSettings": "Exact alarm settings",
+      "syncNow": "Reconcile now"
+    },
+    "quiet": {
+      "heading": "Quiet hours",
+      "description": "Reminders during quiet hours move to the end of the window. Snoozes are always honoured.",
+      "toggle": "Enable quiet hours",
+      "start": "Start",
+      "end": "End",
+      "save": "Save quiet hours"
+    },
+    "defaults": {
+      "heading": "Defaults",
+      "timezone": "Time zone",
+      "reminderTime": "Default reminder time",
+      "snooze": "Snooze length",
+      "minutes": "{{count}} min"
+    },
+    "status": {
+      "heading": "Notification health",
+      "scheduled": "Scheduled alarms",
+      "deferred": "Deferred by cap",
+      "errors": "Scheduling errors"
     }
   },
   "reminders": {

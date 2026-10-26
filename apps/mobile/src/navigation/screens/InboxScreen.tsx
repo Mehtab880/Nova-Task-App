@@ -1,13 +1,15 @@
 import { useTranslation } from 'react-i18next';
 
-import { PlaceholderScreen } from './PlaceholderScreen';
+import { TaskListScreen } from '@/tasks/ui/TaskListScreen';
 
 export function InboxScreen(): React.JSX.Element {
   const { t } = useTranslation();
   return (
-    <PlaceholderScreen
+    <TaskListScreen
+      filter="inbox"
       title={t('screens.inbox.title')}
-      description={t('screens.inbox.description')}
+      emptyTitle={t('tasks.empty.inboxTitle')}
+      emptyDescription={t('tasks.empty.inboxDescription')}
     />
   );
 }

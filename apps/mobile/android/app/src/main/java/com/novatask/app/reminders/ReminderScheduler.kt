@@ -269,7 +269,12 @@ internal class ReminderScheduler(
     }
 
     fun rescheduleFromStore(reason: String): ReconcileOutcome {
-        val reminders = store.snapshot().reminders.filter { it.status == STATUS_SCHEDULED }
+        val reminders =
+            store.snapshot().reminders
+                .filter { it.status == STATUS_SCHEDULED }
+                // Rebuild floating wall times in the current device zone so a
+                // time-zone change cannot leave stale absolute instants behind.
+                .map { it.withRecomputedTrigger() }
         return reconcile(reminders, reason, fromCache = true)
     }
 

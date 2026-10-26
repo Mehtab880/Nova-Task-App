@@ -1,13 +1,15 @@
 import { useTranslation } from 'react-i18next';
 
-import { PlaceholderScreen } from './PlaceholderScreen';
+import { TaskListScreen } from '@/tasks/ui/TaskListScreen';
 
 export function TodayScreen(): React.JSX.Element {
   const { t } = useTranslation();
   return (
-    <PlaceholderScreen
+    <TaskListScreen
+      filter="today"
       title={t('screens.today.title')}
-      description={t('screens.today.description')}
+      emptyTitle={t('tasks.empty.todayTitle')}
+      emptyDescription={t('tasks.empty.todayDescription')}
     />
   );
 }

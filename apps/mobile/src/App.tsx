@@ -1,4 +1,4 @@
-import { useEffect } from 'react';
+import { useEffect, useMemo } from 'react';
 import { StatusBar, StyleSheet, View } from 'react-native';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 
@@ -9,7 +9,9 @@ import { ErrorBoundary } from '@/core/errors/ErrorBoundary';
 import { logger } from '@/core/logging';
 import { ThemeProvider, useTheme } from '@/design/ThemeProvider';
 import { RootNavigator } from '@/navigation/RootNavigator';
-import { useReminderRuntime } from '@/reminders/useReminderRuntime';
+import { createSqliteTaskStore } from '@/tasks/sqliteStore';
+import { TaskStoreProvider } from '@/tasks/TaskStoreProvider';
+import { useNovaRuntime } from '@/tasks/useNovaRuntime';
 
 const styles = StyleSheet.create({
   root: {
@@ -19,7 +21,7 @@ const styles = StyleSheet.create({
 
 function AppContent(): React.JSX.Element {
   const theme = useTheme();
-  useReminderRuntime();
+  useNovaRuntime();
 
   useEffect(() => {
     if (!environment.m0SpikeEnabled) {
@@ -56,10 +58,14 @@ function AppContent(): React.JSX.Element {
 }
 
 export default function App(): React.JSX.Element {
+  const store = useMemo(() => createSqliteTaskStore(), []);
+
   return (
     <SafeAreaProvider>
       <ThemeProvider>
-        <AppContent />
+        <TaskStoreProvider store={store}>
+          <AppContent />
+        </TaskStoreProvider>
       </ThemeProvider>
     </SafeAreaProvider>
   );

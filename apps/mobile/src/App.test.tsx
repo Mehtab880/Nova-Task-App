@@ -14,15 +14,13 @@ describe('App shell', () => {
     expect(today.props['accessibilityState']).toEqual({ selected: true });
   });
 
-  it('navigates between placeholder tabs', async () => {
+  it('navigates between tabs', async () => {
     const user = userEvent.setup();
     await render(<App />);
 
     await user.press(screen.getByRole('tab', { name: 'Calendar' }));
 
-    expect(
-      await screen.findByText('Scheduling will appear here in a later milestone.'),
-    ).toBeTruthy();
+    expect(await screen.findByText('Upcoming')).toBeTruthy();
     expect(screen.getByRole('tab', { name: 'Calendar' }).props['accessibilityState']).toEqual({
       selected: true,
     });

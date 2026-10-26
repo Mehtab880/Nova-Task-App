@@ -1,6 +1,14 @@
 # M4 physical-device verification pack
 
-**Status: Implementation complete. Device verification pending.**
+**Status: Implementation complete. User-reported device verification passed
+(2026-10). Formal evidence archive still pending.**
+
+M4 was exercised on a physical Android device: on-time delivery, screen-off,
+background and process-gone delivery, the 200-reminder cap, Complete and Snooze
+actions, reboot, force-stop, permission changes, exact-alarm fallback, and
+time-zone changes. This pack is retained as the historical M4 protocol; M5
+replaced the dev-only test lab and diagnostics screens with the Nova settings
+screen and the M5 verification pack.
 
 This pack is derived from the 25 cases in
 [`docs/m4-test-matrix.md`](m4-test-matrix.md). Do not mark M4 complete until all

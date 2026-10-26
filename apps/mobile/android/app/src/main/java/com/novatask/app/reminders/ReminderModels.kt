@@ -40,6 +40,12 @@ internal data class StoredReminder(
     val scheduledAt: Long? = null,
     val lastFiredAt: Long? = null,
     val deliveryState: String? = null,
+    /** Floating wall date `YYYY-MM-DD`. Null for absolute snoozes. */
+    val localDate: String? = null,
+    /** Floating wall time `HH:mm`. Null for absolute snoozes. */
+    val localTime: String? = null,
+    /** Time zone the wall time was recorded in. Diagnostics only. */
+    val timezone: String? = null,
     val updatedAt: Long = System.currentTimeMillis(),
 ) {
     fun toJson(): JSONObject =
@@ -55,6 +61,9 @@ internal data class StoredReminder(
             put("scheduledAt", scheduledAt ?: JSONObject.NULL)
             put("lastFiredAt", lastFiredAt ?: JSONObject.NULL)
             put("deliveryState", deliveryState ?: JSONObject.NULL)
+            put("localDate", localDate ?: JSONObject.NULL)
+            put("localTime", localTime ?: JSONObject.NULL)
+            put("timezone", timezone ?: JSONObject.NULL)
             put("updatedAt", updatedAt)
         }
 
@@ -72,9 +81,25 @@ internal data class StoredReminder(
                 scheduledAt = json.optNullableLong("scheduledAt"),
                 lastFiredAt = json.optNullableLong("lastFiredAt"),
                 deliveryState = json.optNullableString("deliveryState"),
+                localDate = json.optNullableString("localDate"),
+                localTime = json.optNullableString("localTime"),
+                timezone = json.optNullableString("timezone"),
                 updatedAt = json.optLong("updatedAt", System.currentTimeMillis()),
             )
     }
+}
+
+/**
+ * Rebuilds the absolute trigger instant from the floating wall time in the
+ * device's current zone. This is what makes "09:00 stays 09:00" work after a
+ * time-zone change, and it runs natively so receivers never depend on JS.
+ */
+internal fun StoredReminder.withRecomputedTrigger(
+    timezoneId: String? = null,
+): StoredReminder {
+    val recomputed = FloatingTime.toEpochMillis(localDate, localTime, timezoneId) ?: return this
+    if (recomputed == triggerAt) return this
+    return copy(triggerAt = recomputed)
 }
 
 internal data class NativeAction(

@@ -48,6 +48,13 @@ export interface NativeReminderInput {
   /** Epoch milliseconds (UTC). */
   readonly triggerAt: number;
   readonly status: ReminderStatus;
+  /**
+   * Floating wall time. When present, native receivers can rebuild `triggerAt`
+   * after a time-zone change without JavaScript. Null for absolute snoozes.
+   */
+  readonly localDate?: string | null;
+  readonly localTime?: string | null;
+  readonly timezone?: string;
 }
 
 export interface NativeScheduleResult {

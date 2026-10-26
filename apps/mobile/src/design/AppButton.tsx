@@ -1,31 +1,34 @@
 import { Pressable, type StyleProp, type ViewStyle } from 'react-native';
 
-import { AppText } from '@/design/AppText';
-import { useTheme } from '@/design/ThemeProvider';
+import { AppText } from './AppText';
+import { useTheme } from './ThemeProvider';
 
-export type ActionButtonVariant = 'primary' | 'secondary' | 'danger' | 'ghost';
+export type AppButtonVariant = 'primary' | 'secondary' | 'danger' | 'ghost';
 
-export interface ActionButtonProps {
+export interface AppButtonProps {
   readonly label: string;
   readonly onPress: () => void;
-  readonly variant?: ActionButtonVariant;
+  readonly variant?: AppButtonVariant;
   readonly disabled?: boolean;
   readonly accessibilityHint?: string;
+  readonly accessibilityLabel?: string;
   readonly selected?: boolean;
   readonly style?: StyleProp<ViewStyle>;
   readonly testID?: string;
 }
 
-export function ActionButton({
+/** Generic 48dp button used by M5 screens. Colour comes only from tokens. */
+export function AppButton({
   label,
   onPress,
   variant = 'primary',
   disabled = false,
   accessibilityHint,
+  accessibilityLabel,
   selected,
   style,
   testID,
-}: ActionButtonProps): React.JSX.Element {
+}: AppButtonProps): React.JSX.Element {
   const theme = useTheme();
 
   const colors =
@@ -35,20 +38,14 @@ export function ActionButton({
         ? { background: theme.colors.errorSurface, text: theme.colors.error }
         : variant === 'ghost'
           ? { background: theme.colors.surfaceSunken, text: theme.colors.text }
-          : {
-              background: theme.colors.surfaceRaised,
-              text: theme.colors.text,
-            };
+          : { background: theme.colors.surfaceRaised, text: theme.colors.text };
 
   return (
     <Pressable
       accessibilityRole="button"
-      accessibilityLabel={label}
-      accessibilityHint={accessibilityHint}
-      accessibilityState={{
-        disabled,
-        ...(selected === undefined ? {} : { selected }),
-      }}
+      accessibilityLabel={accessibilityLabel ?? label}
+      {...(accessibilityHint === undefined ? {} : { accessibilityHint })}
+      accessibilityState={{ disabled, ...(selected === undefined ? {} : { selected }) }}
       disabled={disabled}
       onPress={onPress}
       testID={testID}

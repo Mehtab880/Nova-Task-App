@@ -7,10 +7,9 @@ import {
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { useMemo } from 'react';
 
-import { environment } from '@/core/env/environment';
 import { useTheme } from '@/design/ThemeProvider';
-import { ReminderDiagnosticsScreen } from '@/reminders/screens/ReminderDiagnosticsScreen';
-import { ReminderTestScreen } from '@/reminders/screens/ReminderTestScreen';
+import { TaskDetailScreen } from '@/tasks/ui/TaskDetailScreen';
+import { TaskEditorScreen } from '@/tasks/ui/TaskEditorScreen';
 
 import { TabNavigator } from './TabNavigator';
 import type { RootStackParamList } from './types';
@@ -41,12 +40,12 @@ export function RootNavigator(): React.JSX.Element {
     <NavigationContainer theme={navigationTheme}>
       <Stack.Navigator screenOptions={{ headerShown: false }}>
         <Stack.Screen name="Main" component={TabNavigator} />
-        {environment.m4Enabled ? (
-          <>
-            <Stack.Screen name="ReminderTest" component={ReminderTestScreen} />
-            <Stack.Screen name="ReminderDiagnostics" component={ReminderDiagnosticsScreen} />
-          </>
-        ) : null}
+        <Stack.Screen name="TaskDetail" component={TaskDetailScreen} />
+        <Stack.Screen
+          name="TaskEditor"
+          component={TaskEditorScreen}
+          options={{ presentation: 'modal' }}
+        />
       </Stack.Navigator>
     </NavigationContainer>
   );

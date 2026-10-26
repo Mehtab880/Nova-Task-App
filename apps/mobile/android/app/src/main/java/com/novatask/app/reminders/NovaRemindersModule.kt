@@ -395,6 +395,9 @@ class NovaRemindersModule(
             body = if (map.hasKey("body")) map.getString("body").orEmpty() else "",
             triggerAt = triggerAt,
             status = if (map.hasKey("status")) map.getString("status") ?: STATUS_SCHEDULED else STATUS_SCHEDULED,
+            localDate = if (map.hasKey("localDate")) map.getString("localDate") else null,
+            localTime = if (map.hasKey("localTime")) map.getString("localTime") else null,
+            timezone = if (map.hasKey("timezone")) map.getString("timezone") else null,
             updatedAt = System.currentTimeMillis(),
         )
     }
