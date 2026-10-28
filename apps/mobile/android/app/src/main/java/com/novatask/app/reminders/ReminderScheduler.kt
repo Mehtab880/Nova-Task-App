@@ -254,7 +254,7 @@ internal class ReminderScheduler(
                 val current = activeById[old.id]
                 current != null &&
                     current.requestCode == old.requestCode &&
-                    current.triggerAt != old.triggerAt
+                    ReminderPolicy.shouldCancelStaleNotification(old.triggerAt, current.triggerAt, now)
             }
             .forEach { old -> notifier.cancel(old) }
 

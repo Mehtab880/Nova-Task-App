@@ -78,6 +78,18 @@ class ReminderPolicyTest {
   }
 
   @Test
+  fun `a delivered trigger is not treated as a stale notification`() {
+    val now = 1_000_000L
+    // Case 13: the snooze fired at 14:07:49 and the next plan sends the
+    // original wall time, which is already in the past.
+    assertFalse(ReminderPolicy.shouldCancelStaleNotification(now, now - 600_000L, now))
+    // A pending reminder that moves to another future time is stale.
+    assertTrue(ReminderPolicy.shouldCancelStaleNotification(now, now + 60_000L, now))
+    // An unchanged trigger never cancels.
+    assertFalse(ReminderPolicy.shouldCancelStaleNotification(now, now, now))
+  }
+
+  @Test
   fun `terminal statuses cannot be rescheduled`() {
     assertTrue(ReminderPolicy.isTerminal(STATUS_COMPLETED))
     assertTrue(ReminderPolicy.isTerminal(STATUS_CANCELLED))

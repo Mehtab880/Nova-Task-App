@@ -13,6 +13,17 @@ internal object ReminderPolicy {
 
   fun isOverdue(triggerAt: Long, now: Long): Boolean = triggerAt <= now
 
+  /**
+   * A moved trigger only makes a visible notification stale when the new trigger
+   * is still ahead. A trigger at or before [now] is the delivered reminder (for
+   * example after a snooze fired), so its notification must stay in the shade.
+   */
+  fun shouldCancelStaleNotification(
+      previousTriggerAt: Long,
+      nextTriggerAt: Long,
+      now: Long,
+  ): Boolean = previousTriggerAt != nextTriggerAt && !isOverdue(nextTriggerAt, now)
+
   /** Stable ordering: due first, then id for deterministic cap decisions. */
   fun sortForScheduling(reminders: List<StoredReminder>): List<StoredReminder> =
       reminders.sortedWith(compareBy<StoredReminder> { it.triggerAt }.thenBy { it.id })
