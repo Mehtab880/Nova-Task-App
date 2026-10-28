@@ -35,17 +35,13 @@ internal class ReminderAlarmStore(context: Context) {
     ) {
         synchronized(LOCK) {
             val previous = readAllLocked().associateBy { it.id }
+            // Merge by id, never by trigger equality: a recomputed trigger
+            // (quiet hours, time zone, clock change) must not erase delivery or
+            // dismissal history, and a stale JS snapshot must not roll back a
+            // newer attempt.
             val merged =
                 reminders.map { incoming ->
-                    val old = previous[incoming.id]
-                    if (old != null && old.triggerAt == incoming.triggerAt) {
-                        incoming.copy(
-                            lastFiredAt = old.lastFiredAt,
-                            deliveryState = old.deliveryState,
-                        )
-                    } else {
-                        incoming
-                    }
+                    ReminderPolicy.mergeDeliveryState(incoming, previous[incoming.id])
                 }
             prefs
                 .edit()

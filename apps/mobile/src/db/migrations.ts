@@ -9,7 +9,7 @@ import { systemClock } from '@/core/time/Clock';
  *
  * Migration policy: append a new entry. Never edit a shipped migration.
  */
-export const M5_SCHEMA_VERSION = 1;
+export const M5_SCHEMA_VERSION = 2;
 
 export const DEFAULT_LIST_ID = 'list_00000000000000000000000000';
 
@@ -240,10 +240,34 @@ export interface Migration {
   readonly statements: readonly string[];
 }
 
+/**
+ * F2: a logical trigger (one notification_schedule row) can have several
+ * delivery attempts. `trigger_seq` identifies the current attempt and is
+ * incremented only by an explicit snooze; `delivered_seq` records the attempt
+ * that was actually posted. Dismissal is tracked separately so it can never be
+ * used as a scheduling input. Additive only: no table rebuild, no data loss.
+ */
+const ADD_DELIVERY_STATE_SQL = [
+  `ALTER TABLE notification_schedule ADD COLUMN trigger_seq INTEGER NOT NULL DEFAULT 1`,
+  `ALTER TABLE notification_schedule ADD COLUMN delivered_seq INTEGER NOT NULL DEFAULT 0`,
+  `ALTER TABLE notification_schedule ADD COLUMN dismissed_seq INTEGER NOT NULL DEFAULT 0`,
+  `ALTER TABLE notification_schedule ADD COLUMN dismissed_at INTEGER`,
+  // Rows delivered before this build must not re-alert after the upgrade.
+  `UPDATE notification_schedule
+      SET delivered_seq = trigger_seq
+    WHERE last_fired_at IS NOT NULL
+       OR state = 'delivered-active'
+       OR status = 'fired'`,
+] as const;
+
 export const MIGRATIONS: readonly Migration[] = [
   {
     version: 1,
     statements: [...CREATE_TABLES_SQL, ...CREATE_INDEXES_SQL],
+  },
+  {
+    version: 2,
+    statements: [...ADD_DELIVERY_STATE_SQL],
   },
 ];
 

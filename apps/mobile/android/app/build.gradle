@@ -171,6 +171,9 @@ dependencies {
     implementation("androidx.core:core-ktx:1.17.0")
 
     testImplementation("junit:junit:4.13.2")
+    // Real org.json on the unit-test classpath (Android stubs throw by default),
+    // so the durable cache JSON round-trip can be verified.
+    testImplementation("org.json:json:20240303")
 
     if (hermesEnabled.toBoolean()) {
         implementation("com.facebook.react:hermes-android")

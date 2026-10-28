@@ -40,7 +40,11 @@ internal class ReminderScheduler(
         var deferredCount = 0
         var errorCount = 0
 
-        for (reminder in ReminderPolicy.sortForScheduling(active)) {
+        for (raw in ReminderPolicy.sortForScheduling(active)) {
+            // The native cache is the delivery authority. Merge its seqs into
+            // the incoming plan so a stale JS snapshot can never make a
+            // delivered attempt look pending again.
+            val reminder = ReminderPolicy.mergeForReconcile(raw, previous[raw.id])
             val duplicateId = !seenIds.add(reminder.id)
             val duplicateCode = !seenCodes.add(reminder.requestCode)
             if (!ReminderPolicy.isValidRequestCode(reminder.requestCode) || duplicateId || duplicateCode) {
@@ -60,6 +64,11 @@ internal class ReminderScheduler(
                         reason = reasonText,
                         scheduledFor = null,
                         notificationActive = false,
+                        triggerSeq = reminder.triggerSeq,
+                        deliveredSeq = reminder.deliveredSeq,
+                        dismissedSeq = reminder.dismissedSeq,
+                        dismissedAt = reminder.dismissedAt,
+                        lastFiredAt = reminder.lastFiredAt,
                     ),
                 )
                 nextStore.add(
@@ -75,10 +84,44 @@ internal class ReminderScheduler(
 
             val overdue = ReminderPolicy.isOverdue(reminder.triggerAt, now)
             val notificationActive = notifier.isNotificationActive(reminder.requestCode)
+            val delivered = ReminderPolicy.isDelivered(reminder.triggerSeq, reminder.deliveredSeq)
 
             when {
+                delivered -> {
+                    // Never re-post, never cancel a visible notification, and
+                    // never consume a pending-alarm slot for delivered history.
+                    ReminderIntents.cancelAlarm(appContext, reminder.id, reminder.requestCode)
+                    val visible = notificationActive
+                    outcomes.add(
+                        ScheduleOutcome(
+                            id = reminder.id,
+                            requestCode = reminder.requestCode,
+                            state = if (visible) "delivered-active" else "delivered",
+                            reason = if (visible) "notification-visible" else "already-delivered",
+                            scheduledFor = null,
+                            notificationActive = visible,
+                            triggerSeq = reminder.triggerSeq,
+                            deliveredSeq = reminder.deliveredSeq,
+                            dismissedSeq = reminder.dismissedSeq,
+                            dismissedAt = reminder.dismissedAt,
+                            lastFiredAt = reminder.lastFiredAt,
+                        ),
+                    )
+                    nextStore.add(
+                        reminder.copy(
+                            scheduleMode = if (visible) "delivered-active" else "delivered",
+                            scheduleReason =
+                                if (visible) "notification-visible" else "already-delivered",
+                            scheduledAt = null,
+                            updatedAt = now,
+                        ),
+                    )
+                }
+
                 notificationActive && overdue -> {
                     ReminderIntents.cancelAlarm(appContext, reminder.id, reminder.requestCode)
+                    // A visible notification for a past trigger is a delivery.
+                    val deliveredSeq = maxOf(reminder.deliveredSeq, reminder.triggerSeq)
                     outcomes.add(
                         ScheduleOutcome(
                             id = reminder.id,
@@ -87,6 +130,11 @@ internal class ReminderScheduler(
                             reason = "notification-visible",
                             scheduledFor = null,
                             notificationActive = true,
+                            triggerSeq = reminder.triggerSeq,
+                            deliveredSeq = deliveredSeq,
+                            dismissedSeq = reminder.dismissedSeq,
+                            dismissedAt = reminder.dismissedAt,
+                            lastFiredAt = reminder.lastFiredAt,
                         ),
                     )
                     nextStore.add(
@@ -94,6 +142,7 @@ internal class ReminderScheduler(
                             scheduleMode = "delivered-active",
                             scheduleReason = "notification-visible",
                             scheduledAt = null,
+                            deliveredSeq = deliveredSeq,
                             updatedAt = now,
                         ),
                     )
@@ -109,6 +158,11 @@ internal class ReminderScheduler(
                             reason = "notifications-disabled",
                             scheduledFor = null,
                             notificationActive = false,
+                            triggerSeq = reminder.triggerSeq,
+                            deliveredSeq = reminder.deliveredSeq,
+                            dismissedSeq = reminder.dismissedSeq,
+                            dismissedAt = reminder.dismissedAt,
+                            lastFiredAt = reminder.lastFiredAt,
                         ),
                     )
                     nextStore.add(
@@ -133,6 +187,11 @@ internal class ReminderScheduler(
                             reason = "pending-alarm-cap",
                             scheduledFor = null,
                             notificationActive = false,
+                            triggerSeq = reminder.triggerSeq,
+                            deliveredSeq = reminder.deliveredSeq,
+                            dismissedSeq = reminder.dismissedSeq,
+                            dismissedAt = reminder.dismissedAt,
+                            lastFiredAt = reminder.lastFiredAt,
                         ),
                     )
                     nextStore.add(
@@ -185,6 +244,11 @@ internal class ReminderScheduler(
                                 reason = "alarm-scheduling-failed",
                                 scheduledFor = null,
                                 notificationActive = false,
+                                triggerSeq = reminder.triggerSeq,
+                                deliveredSeq = reminder.deliveredSeq,
+                                dismissedSeq = reminder.dismissedSeq,
+                                dismissedAt = reminder.dismissedAt,
+                                lastFiredAt = reminder.lastFiredAt,
                             ),
                         )
                         nextStore.add(
@@ -207,6 +271,11 @@ internal class ReminderScheduler(
                                 reason = if (overdue) "overdue-fired-immediately" else null,
                                 scheduledFor = scheduledFor,
                                 notificationActive = false,
+                                triggerSeq = reminder.triggerSeq,
+                                deliveredSeq = reminder.deliveredSeq,
+                                dismissedSeq = reminder.dismissedSeq,
+                                dismissedAt = reminder.dismissedAt,
+                                lastFiredAt = reminder.lastFiredAt,
                             ),
                         )
                         nextStore.add(
@@ -223,7 +292,9 @@ internal class ReminderScheduler(
         }
 
         val activeIds = active.map { it.id }.toSet()
-        val activeById = active.associateBy { it.id }
+        // Use the merged rows (not the raw plan) so stale delivery state cannot
+        // make a delivered notification look stale.
+        val activeById = nextStore.associateBy { it.id }
         // A dropped schedule never keeps its id, but its request code can be
         // reused by a different schedule when the new plan is built. The alarm
         // PendingIntent is keyed on id + code, so cancel by the old id even when
@@ -254,6 +325,9 @@ internal class ReminderScheduler(
                 val current = activeById[old.id]
                 current != null &&
                     current.requestCode == old.requestCode &&
+                    // Delivered attempts keep their notification even when a
+                    // recomputed trigger moves; delivery is not staleness.
+                    !ReminderPolicy.isDelivered(current.triggerSeq, current.deliveredSeq) &&
                     ReminderPolicy.shouldCancelStaleNotification(old.triggerAt, current.triggerAt, now)
             }
             .forEach { old -> notifier.cancel(old) }

@@ -90,6 +90,7 @@ internal class ReminderNotifier(private val context: Context) {
                     .setShowWhen(true)
                     .setAutoCancel(true)
                     .setContentIntent(ReminderIntents.contentPendingIntent(context, reminder))
+                    .setDeleteIntent(ReminderIntents.dismissPendingIntent(context, reminder))
                     .addAction(
                         0,
                         context.getString(R.string.notification_action_complete),

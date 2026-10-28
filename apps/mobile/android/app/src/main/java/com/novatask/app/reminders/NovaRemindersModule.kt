@@ -184,6 +184,7 @@ class NovaRemindersModule(
                                 putString("reminderId", action.reminderId)
                                 putInt("requestCode", action.requestCode)
                                 putDouble("occurredAt", action.occurredAt.toDouble())
+                                putInt("seq", action.seq)
                                 if (action.snoozedUntil == null) {
                                     putNull("snoozedUntil")
                                 } else {
@@ -270,7 +271,9 @@ class NovaRemindersModule(
         val inexactCount = entries.count { it.scheduleMode.startsWith("inexact") }
         val deferredCount = entries.count { it.scheduleMode == "deferred-cap" }
         val errorCount = entries.count { it.scheduleMode == "error" }
-        val deliveredCount = entries.count { it.scheduleMode == "delivered-active" }
+        val deliveredCount = entries.count {
+            ReminderPolicy.isDelivered(it.triggerSeq, it.deliveredSeq)
+        }
         val blockedCount =
             entries.count {
                 it.scheduleMode == "blocked-notification-permission" ||
@@ -312,6 +315,10 @@ class NovaRemindersModule(
                                         putNullableDouble("scheduledAt", entry.scheduledAt)
                                         putNullableDouble("lastFiredAt", entry.lastFiredAt)
                                         putNullableString("deliveryState", entry.deliveryState)
+                                        putInt("triggerSeq", entry.triggerSeq)
+                                        putInt("deliveredSeq", entry.deliveredSeq)
+                                        putInt("dismissedSeq", entry.dismissedSeq)
+                                        putNullableDouble("dismissedAt", entry.dismissedAt)
                                         putBoolean(
                                             "pendingIntentExists",
                                             ReminderPolicy.hasPendingAlarm(entry.scheduleMode) &&
@@ -369,6 +376,11 @@ class NovaRemindersModule(
                                 putNullableString("reason", result.reason)
                                 putNullableDouble("scheduledFor", result.scheduledFor)
                                 putBoolean("notificationActive", result.notificationActive)
+                                putInt("triggerSeq", result.triggerSeq)
+                                putInt("deliveredSeq", result.deliveredSeq)
+                                putInt("dismissedSeq", result.dismissedSeq)
+                                putNullableDouble("dismissedAt", result.dismissedAt)
+                                putNullableDouble("lastFiredAt", result.lastFiredAt)
                             },
                         )
                     }
@@ -395,6 +407,15 @@ class NovaRemindersModule(
             body = if (map.hasKey("body")) map.getString("body").orEmpty() else "",
             triggerAt = triggerAt,
             status = if (map.hasKey("status")) map.getString("status") ?: STATUS_SCHEDULED else STATUS_SCHEDULED,
+            triggerSeq = if (map.hasKey("triggerSeq")) map.getInt("triggerSeq") else 1,
+            deliveredSeq = if (map.hasKey("deliveredSeq")) map.getInt("deliveredSeq") else 0,
+            dismissedSeq = if (map.hasKey("dismissedSeq")) map.getInt("dismissedSeq") else 0,
+            dismissedAt =
+                if (map.hasKey("dismissedAt") && !map.isNull("dismissedAt")) {
+                    map.getDouble("dismissedAt").toLong()
+                } else {
+                    null
+                },
             localDate = if (map.hasKey("localDate")) map.getString("localDate") else null,
             localTime = if (map.hasKey("localTime")) map.getString("localTime") else null,
             timezone = if (map.hasKey("timezone")) map.getString("timezone") else null,

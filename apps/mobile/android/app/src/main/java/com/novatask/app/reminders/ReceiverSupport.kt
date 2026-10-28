@@ -21,6 +21,7 @@ internal fun reminderFromIntent(intent: Intent): StoredReminder? {
         title = intent.getStringExtra(ReminderIntents.EXTRA_TITLE).orEmpty(),
         body = intent.getStringExtra(ReminderIntents.EXTRA_BODY).orEmpty(),
         triggerAt = intent.getLongExtra("trigger_at", 0L),
+        triggerSeq = intent.getIntExtra(ReminderIntents.EXTRA_TRIGGER_SEQ, 1),
         scheduleMode = "cache-miss",
         scheduleReason = "receiver-intent-fallback",
     )

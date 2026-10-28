@@ -30,22 +30,33 @@ internal class ReminderAlarmReceiver : BroadcastReceiver() {
         }
         val store = ReminderAlarmStore(context)
         val cached = store.find(fallback.id)
-        if (cached != null && cached.requestCode != fallback.requestCode) {
+        if (cached == null) {
+            // A fire intent for a schedule that is no longer cached is stale.
+            // Never post from fallback extras: that is exactly how a dismissed
+            // or replaced trigger would re-alert.
+            Log.w(TAG, "Ignoring alarm for uncached reminder ${fallback.id}")
+            return
+        }
+        if (cached.requestCode != fallback.requestCode) {
             // The reminder moved to a new request code during reconciliation.
             // A stale PendingIntent must not deliver against the new identity.
             Log.w(TAG, "Ignoring stale alarm for ${fallback.id}")
             return
         }
-        val reminder = cached ?: fallback.copy(
-            triggerAt = if (fallback.triggerAt > 0) fallback.triggerAt else System.currentTimeMillis(),
-        )
-
-        if (ReminderPolicy.isTerminal(reminder.status)) {
-            ReminderNotifier(context).cancel(reminder)
+        val seq = intent.getIntExtra(ReminderIntents.EXTRA_TRIGGER_SEQ, 0)
+        if (!ReminderPolicy.isDeliveryForCurrentAttempt(seq, cached)) {
+            Log.w(TAG, "Ignoring alarm for a superseded attempt of ${cached.id}")
             return
         }
 
-        val delivery = ReminderNotifier(context).showReminder(reminder)
+        if (ReminderPolicy.isTerminal(cached.status)) {
+            ReminderNotifier(context).cancel(cached)
+            return
+        }
+
+        val now = System.currentTimeMillis()
+        val delivery = ReminderNotifier(context).showReminder(cached)
+        val posted = delivery == NotificationDelivery.POSTED
         val mode =
             when (delivery) {
                 NotificationDelivery.POSTED -> "fired"
@@ -62,25 +73,20 @@ internal class ReminderAlarmReceiver : BroadcastReceiver() {
             }
 
         val updated =
-            reminder.copy(
+            cached.copy(
                 scheduleMode = mode,
-                scheduleReason =
-                    if (cached == null) {
-                        "receiver-intent-fallback"
-                    } else {
-                        reminder.scheduleReason
-                    },
-                lastFiredAt = System.currentTimeMillis(),
+                scheduleReason = if (posted) "notification-posted" else cached.scheduleReason,
+                lastFiredAt = now,
                 deliveryState = deliveryState,
                 scheduledAt = null,
-                updatedAt = System.currentTimeMillis(),
+                // Delivery is recorded only for an attempt that was actually
+                // posted. A scheduling success is not a delivery.
+                deliveredSeq =
+                    if (posted) maxOf(cached.deliveredSeq, cached.triggerSeq) else cached.deliveredSeq,
+                updatedAt = now,
             )
-        if (cached == null) {
-            store.upsert(updated)
-        } else {
-            store.update(reminder.id) { updated }
-        }
-        Log.i(TAG, "Reminder ${reminder.id} delivery=$delivery")
+        store.update(cached.id) { updated }
+        Log.i(TAG, "Reminder ${cached.id} delivery=$delivery")
     }
 
     private companion object {

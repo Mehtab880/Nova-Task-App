@@ -23,6 +23,7 @@ internal const val STATUS_CANCELLED = "cancelled"
 
 internal const val ACTION_COMPLETE = "complete"
 internal const val ACTION_SNOOZE = "snooze"
+internal const val ACTION_DISMISS = "dismiss"
 
 /**
  * The native representation of one reminder. SQLite remains the source of truth;
@@ -40,6 +41,13 @@ internal data class StoredReminder(
     val scheduledAt: Long? = null,
     val lastFiredAt: Long? = null,
     val deliveryState: String? = null,
+    /** Delivery attempt this row currently represents. Starts at 1. */
+    val triggerSeq: Int = 1,
+    /** Highest attempt actually posted by the receiver. */
+    val deliveredSeq: Int = 0,
+    /** Highest attempt the user explicitly dismissed. Never a scheduling input. */
+    val dismissedSeq: Int = 0,
+    val dismissedAt: Long? = null,
     /** Floating wall date `YYYY-MM-DD`. Null for absolute snoozes. */
     val localDate: String? = null,
     /** Floating wall time `HH:mm`. Null for absolute snoozes. */
@@ -61,6 +69,10 @@ internal data class StoredReminder(
             put("scheduledAt", scheduledAt ?: JSONObject.NULL)
             put("lastFiredAt", lastFiredAt ?: JSONObject.NULL)
             put("deliveryState", deliveryState ?: JSONObject.NULL)
+            put("triggerSeq", triggerSeq)
+            put("deliveredSeq", deliveredSeq)
+            put("dismissedSeq", dismissedSeq)
+            put("dismissedAt", dismissedAt ?: JSONObject.NULL)
             put("localDate", localDate ?: JSONObject.NULL)
             put("localTime", localTime ?: JSONObject.NULL)
             put("timezone", timezone ?: JSONObject.NULL)
@@ -81,6 +93,10 @@ internal data class StoredReminder(
                 scheduledAt = json.optNullableLong("scheduledAt"),
                 lastFiredAt = json.optNullableLong("lastFiredAt"),
                 deliveryState = json.optNullableString("deliveryState"),
+                triggerSeq = json.optInt("triggerSeq", 1),
+                deliveredSeq = json.optInt("deliveredSeq", 0),
+                dismissedSeq = json.optInt("dismissedSeq", 0),
+                dismissedAt = json.optNullableLong("dismissedAt"),
                 localDate = json.optNullableString("localDate"),
                 localTime = json.optNullableString("localTime"),
                 timezone = json.optNullableString("timezone"),
@@ -109,6 +125,8 @@ internal data class NativeAction(
     val requestCode: Int,
     val occurredAt: Long,
     val snoozedUntil: Long? = null,
+    /** Attempt the callback belongs to. 0 for legacy actions without identity. */
+    val seq: Int = 0,
     val title: String = "",
     val body: String = "",
 ) {
@@ -120,6 +138,7 @@ internal data class NativeAction(
             put("requestCode", requestCode)
             put("occurredAt", occurredAt)
             put("snoozedUntil", snoozedUntil ?: JSONObject.NULL)
+            put("seq", seq)
             put("title", title)
             put("body", body)
         }
@@ -133,6 +152,7 @@ internal data class NativeAction(
                 requestCode = json.getInt("requestCode"),
                 occurredAt = json.getLong("occurredAt"),
                 snoozedUntil = json.optNullableLong("snoozedUntil"),
+                seq = json.optInt("seq", 0),
                 title = json.optString("title", ""),
                 body = json.optString("body", ""),
             )
@@ -146,6 +166,11 @@ internal data class ScheduleOutcome(
     val reason: String?,
     val scheduledFor: Long?,
     val notificationActive: Boolean,
+    val triggerSeq: Int = 1,
+    val deliveredSeq: Int = 0,
+    val dismissedSeq: Int = 0,
+    val dismissedAt: Long? = null,
+    val lastFiredAt: Long? = null,
 )
 
 internal data class ReconcileOutcome(

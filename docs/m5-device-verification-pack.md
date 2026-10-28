@@ -1,7 +1,9 @@
 # M5 physical-device verification pack
 
-**Status: Implementation complete. Device verification in progress - 14/46 cases
-passed on one API 33 device; the API 26-30 leg has not started.**
+**Status: Implementation complete. Device verification in progress - 15/47 cases
+passed on one API 33 device (the original 46 remain at 14; case 47, the F1
+re-verification, and the stale-snooze path passed on 2026-10-28); the API 26-30
+leg has not started.**
 
 This pack covers the M5 acceptance criteria for real task storage, recurrence,
 reminders, and notification reconciliation. M5 is not complete until every case
@@ -149,6 +151,48 @@ Each directory under `artifacts/device/` holds `nova.db` (plus WAL), `alarms.txt
 | 7    | `20261026-123831`  | Lists `Inbox` + `Workk`; moved task row `list_id=list_01M5VJ2B1Z8KQYM8RZ3E987KG1`.                                                                                                                                                                           |
 | 7    | `20261026-124525`  | Occurrence moved to `Workk`; reminder definition and all 10 exact schedules unchanged; 10 `RTC_WAKEUP` alarms.                                                                                                                                               |
 
+## Captured evidence (2026-10-28, F1/F2 re-verification, NOTE 24 / API 33)
+
+Same device and app id; F2 build (`installDevDebug`) with schema v2. Evidence
+directories are gitignored.
+
+| Step                                       | Evidence directory                                                                         | Key observation                                                                                                                                                                                |
+| ------------------------------------------ | ------------------------------------------------------------------------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Migration v1 -> v2 on existing data        | `20261028-112627-f2-migration`                                                             | `pragma user_version=2`; `trigger_seq`/`delivered_seq`/`dismissed_seq`/`dismissed_at` present; prior tasks/events intact; no schedules re-armed.                                               |
+| Fire (overdue one-off)                     | `20261028-112943-f2-fire1`                                                                 | `schedule_9caaf8dea48b2799` POSTED at 11:29:16; SQLite still pending until the next reconcile (delivery is not acked by scheduling).                                                           |
+| Delivered + visible reconcile              | `20261028-113030-f2-visible-reconcile`                                                     | `state=delivered-active`, `trigger=1`, `delivered=1`; still exactly one live `NotificationRecord`; no second POSTED.                                                                           |
+| Snooze from notification                   | `20261028-113141-f2-snoozed`                                                               | `trigger=2`, `delivered=1`, `snoozed_until=11:41:15`, `notification-snooze` event; old notification gone; one new `RTC_WAKEUP`.                                                                |
+| Snoozed re-fire (F1)                       | `20261028-114218-f1-refire-foreground`                                                     | POSTED at 11:41:15; after foregrounding the app the notification stayed visible, `trigger=2`, `delivered=2`, `state=delivered-active`, no third POSTED.                                        |
+| Dismiss (swipe) + force-stop + relaunch x2 | `20261028-114340-case47-dismissed-relaunch`                                                | "Dismissed reminder ... attempt 2"; `status=fired`, `trigger=2`, `delivered=2`, `dismissed=2`, `dismissed_at` set, `notification-dismiss` event, task still `todo`, no notification, no alarm. |
+| Settings reconcile after dismissal         | `20261028-114451-case47-quiet-reconcile`                                                   | Quiet-hours switch toggled (reconcile) -> still no notification and no alarm for the delivered row; row unchanged.                                                                             |
+| Recurring occurrence 1 delivered+dismissed | `20261028-115012-case47-recur-dismissed`                                                   | `schedule_df7c...` `delivered=1`, `dismissed=1`, `status=fired`; the 9 later occurrences stay `state=exact` with 9 live app alarms; every task stays `todo`.                                   |
+| Deliberate date/time edit after dismissal  | `20261028-115212-case47-edit-newschedule`, `20261028-115241-case47-newschedule-reconciled` | New id `schedule_9e9e3011ce3e4d98`, new request code 12, POSTED at 11:52:00, `trigger=1`, `delivered=1`; old delivered row dropped. The dismissal did not suppress it.                         |
+
+The 9 future recurring alarms were still live at the end of the run
+(`live app alarms: 9`), and no reminder notification was left in the shade.
+
+## Captured evidence (2026-10-28, final-build F2 smoke, NOTE 24 / API 33)
+
+Installed with `installDevDebug` over the existing v2 database (data intact).
+Directories are under `artifacts/device/` (gitignored).
+
+| Step                                     | Evidence directory                                                | Key observation                                                                                                                                                                                                                             |
+| ---------------------------------------- | ----------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Case 47 fire                             | `20261028-1218-final47-smoke/01-fire`                             | `schedule_91aec4b2318b6c4b` POSTED once at 12:30:00; notification id 1 live; 9 recurring alarms; SQLite still pending until the next reconcile.                                                                                             |
+| Delivered + visible reconcile            | `20261028-1218-final47-smoke/02-visible-reconcile`                | Foreground reconcile moved the row to `state=delivered-active`, `trigger=1`, `delivered=1`; 3 live notifications stayed visible; no new POSTED.                                                                                             |
+| Swipe dismiss + force-stop + relaunch x2 | `20261028-1218-final47-smoke/03-dismissed-relaunch`               | Log "Dismissed reminder schedule_91aec4b2318b6c4b attempt 1"; notification removed; app relaunched twice.                                                                                                                                   |
+| Post-relaunch check                      | `20261028-1218-final47-smoke/04-relaunch-check`                   | `status=fired`, `reason=already-delivered`, `trigger=1`, `delivered=1`, `dismissed=1`, `dismissed_at=1793172732737`, `notification-dismiss` event; task still `todo`; 1 POSTED total; 9 alarms; 0 notifications.                            |
+| Settings reconcile after dismissal       | `20261028-1218-final47-smoke/05-settings-reconcile`               | Settings screen opened; no re-alert, no new POSTED, delivered row unchanged.                                                                                                                                                                |
+| Manual reconcile after dismissal         | `20261028-1218-final47-smoke/06-manual-reconcile`                 | `Reconcile now` tapped at 12:35:49; still 1 POSTED, no alarm for the delivered attempt, 0 live notifications, task still `todo`.                                                                                                            |
+| Stale-snooze armed                       | `20261028-1240-final47-stalesnooze/00-armed`                      | `schedule_2508de935da51e64` code 14, due 12:45 exact, `trigger=1`, `delivered=0`.                                                                                                                                                           |
+| Stale-snooze fire                        | `20261028-1240-final47-stalesnooze/01-fire`                       | POSTED once at 12:45:00; notification id 14 live; SQLite still pending (delivery recorded natively).                                                                                                                                        |
+| Snooze from shade                        | `20261028-1240-final47-stalesnooze/02-shade-snooze`               | Expanded shade shows `Complete` / `Snooze 10 min`; tap at 12:46:28 logs "Snoozed ... until 1793174188429"; old notification removed.                                                                                                        |
+| Pre-drain state                          | `20261028-1240-final47-stalesnooze/03-pre-reconcile`              | SQLite `trigger=1`, `delivered=0`, `snoozed=null`; native cache `triggerSeq=2`, `deliveredSeq=1`, `snoozedUntil=1793174188429`; durable action `snooze` `seq=1` queued.                                                                     |
+| Reconcile before drain                   | `20261028-1240-final47-stalesnooze/04-manual-reconcile-pre-drain` | `Reconcile now` (`last_reconcile_reason=settings-manual`) merged `trigger=2`, `delivered=1`, `scheduled_at=1793174188429`, `snoozed_until` still null; action still queued; exactly one alarm at 1793174188429.                             |
+| Drain on foreground                      | `20261028-1240-final47-stalesnooze/05-drained-foreground`         | Background + relaunch drained the action: `snoozed_until=1793174188429` preserved, `trigger=2`, `delivered=1`, `state=exact`, `status=scheduled`, `notification-snooze` event; queue empty; one alarm at the snooze instant; none at 12:45. |
+| Stale-snooze re-fire                     | `20261028-1240-final47-stalesnooze/06-refire`                     | POSTED once at 12:56:29.171; native cache `triggerSeq=2`, `deliveredSeq=2`, `deliveryState=posted`, `lastFiredAt=1793174189147`; exactly one live notification id 14; snooze alarm consumed.                                                |
+| Re-fire foreground merge                 | `20261028-1240-final47-stalesnooze/07-refire-foreground`          | Foreground reconcile persisted `trigger=2`, `delivered=2`, `state=delivered-active`, `status=fired`; notification id 14 stayed visible; no third POSTED; no alarm at 12:45 or at the snooze instant.                                        |
+
 ## Findings from the 2026-10-26 run
 
 ### F1 - A delivered snoozed notification is dismissed by the next foreground reconcile (fixed in code; device re-verification not finished)
@@ -176,15 +220,16 @@ a stale future alarm. `ReminderScheduler` now skips that cancel when
 `ReminderPolicy.isOverdue(current.triggerAt, now)`; the rule lives in
 `ReminderPolicy.shouldCancelStaleNotification` with a unit test.
 
-Fix status: the code change, the Kotlin unit test, `testDevDebugUnitTest` and
-`installDevDebug` all pass locally, but the device re-verification did **not**
-finish. A fresh task (`Case 13 fix`, due 14:21, `At due time`) was created and
-its notification fired, but adb over Wi-Fi dropped at ~14:21 before the snooze
-was tapped, so the on-device "snooze -> re-fire -> foreground -> notification
-stays" sequence is still outstanding. Treat F1 as fixed-in-code, unverified on
-device.
+Fix status: **device-verified on 2026-10-28**. The code change, the Kotlin unit
+test, `testDevDebugUnitTest` and `installDevDebug` all pass locally, and the
+on-device sequence completed: overdue fire -> Snooze 10 min -> re-fire at
+`11:41:15.096` -> background/foreground the app -> the notification stayed in
+the shade with exactly one `NotificationRecord`, `trigger_seq=2`,
+`delivered_seq=2`, `state=delivered-active`, and no third POSTED
+(`20261028-114218-f1-refire-foreground`). The earlier 2026-10-26 attempt stopped
+before the snooze tap because adb over Wi-Fi dropped; that gap is now closed.
 
-### F2 - A delivered reminder with no visible notification re-fires on the next reconcile (open)
+### F2 - A delivered reminder with no visible notification re-fires on the next reconcile (fixed in code; device verification pending)
 
 Same run, immediately after F1. Once the delivered notification was gone, the
 next reconcile (quiet-hours edits at 14:11:50) treated the reminder as overdue
@@ -192,21 +237,82 @@ with nothing posted and re-armed it: a second
 `Reminder schedule_660efd2ca60b3c93 delivery=POSTED` at 14:11:50.687, i.e. the
 same reminder alerted twice in four minutes.
 
-The F1 fix removes the accidental cancel that triggered this. The remaining
-path is the user dismissing a delivered reminder: the row stays
-`status=scheduled`, `state=delivered-active`, so the plan keeps sending the wall
-time and native re-arms it as overdue. Dismissal currently equals "will alert
-again on the next app open".
+The F1 fix removes the accidental cancel that triggered this. The remaining path
+is the user dismissing a delivered reminder: the row stayed `status=scheduled`,
+`state=delivered-active`, so the plan kept sending the wall time and native
+re-armed it as overdue. Dismissal used to mean "will alert again on the next app
+open".
 
-Decision needed before shipping: treat a dismissed notification as final for
-that trigger (needs a `deleteIntent`/dismissed state in M5.1) or accept the
-re-alert as "still due". Recorded here so the behaviour is not mistaken for a
-regression later; not changed during verification.
+Decision taken: dismissal is final for that delivery attempt, but it is
+**history, not a scheduling input**. It must not complete the task, must not
+cancel later recurring occurrences, and must not suppress an explicit future
+snooze or a deliberately re-scheduled trigger.
 
-Status: open, reproduced on device before the F1 fix. The F1 fix is expected to
-remove the accidental-dismiss path that produced this second POSTED, but that is
-not device-verified yet; the user-dismissal path stays open until a decision is
-made.
+Implementation (separate fix, does not modify `4182a22`):
+
+- Delivery attempt identity is explicit: `notification_schedule.trigger_seq`
+  starts at 1 and advances **only** on an explicit snooze; `delivered_seq` is
+  written **only** by the native receiver after a notification was actually
+  posted (`NotificationDelivery.POSTED`). A logical trigger is delivered when
+  `trigger_seq > 0 && delivered_seq >= trigger_seq`. Recomputing a wall time
+  (quiet hours, time zone, clock change) can therefore never make a delivered
+  trigger look pending again.
+- Dismissal is recorded separately (`dismissed_seq`, `dismissed_at`, a
+  `notification-dismiss` event) through `deleteIntent` -> `ReminderActionReceiver`
+  -> durable `NativeAction(type='dismiss')` queue -> JS. It is never inferred
+  from `notificationActive = false` and never feeds the scheduler.
+- Duplicate-delivery prevention does not depend on dismissal callbacks: the
+  delivered branch in `ReminderScheduler` never re-arms, never re-posts, never
+  cancels a still-visible notification, and never consumes a pending-alarm slot.
+- `ReminderAlarmStore.replaceAll` and the reconcile merge by schedule id, taking
+  the highest seq values and newest timestamps, so delivery/dismissal history and
+  request-code reservations survive restart, cache replacement, and a stale JS
+  snapshot. A snooze performed while the app was dead wins over the incoming
+  plan because the cache's attempt is newer.
+- `markScheduleFiredByNativeId` was removed; delivery is persisted only from
+  receiver-recorded outcomes via `persistNativeResult`. Scheduling success is no
+  longer treated as delivery.
+- Schema migration v2 is additive: four `ALTER TABLE notification_schedule`
+  columns plus a backfill that marks rows already delivered before this build
+  (`last_fired_at IS NOT NULL`, `state='delivered-active'`, or `status='fired'`)
+  as `delivered_seq = trigger_seq`. The v1 migration is untouched.
+- If a reconcile copies `trigger_seq` from the native cache before the durable
+  snooze action is drained, the action is applied idempotently (same absolute
+  snooze time, no second attempt) instead of being discarded. Otherwise the
+  lost `snoozed_until` would let the next reconcile re-arm the original past
+  wall time and re-alert.
+
+Local verification: Jest 39 tests across `src/notifications` + `src/reminders`
+pass (including the new F2 regressions: delivered+visible survives reconcile,
+delivered+dismissed does not re-alert, delivery survives restart/cache
+replacement, explicit snooze alerts once, a reconcile that already propagated
+the attempt still keeps the snooze time, a deliberate new schedule is not
+suppressed, an old delivery does not suppress a distinct trigger, a future
+recurring occurrence still alerts, a stale dismissal cannot suppress a newer
+trigger, and delivered rows do not consume the cap). The schema v2 migration
+suite covers a fresh install, an existing v1 database, already-delivered rows,
+pending rows, and reopening an already-upgraded database.
+`testDevDebugUnitTest` passes (attempt identity, dismissal validation, cache
+merge, JSON round trip). `pnpm verify` is green.
+
+Status: **device-verified on 2026-10-28 (case 47)**. The final F2 build
+(`installDevDebug` over existing data) was smoke-tested end to end: delivered +
+visible survived a foreground reconcile; a delivered + dismissed attempt
+produced no second POSTED after a swipe, two relaunches, and a settings
+`Reconcile now`; the row stayed `status=fired` with `trigger_seq=1`,
+`delivered_seq=1`, `dismissed_seq=1`, `dismissed_at` set, a
+`notification-dismiss` event, the task still `todo`, and no alarm for the
+delivered attempt. The stale-snooze path (reconcile copies `trigger_seq` before
+the durable snooze action is drained) was exercised separately on the same
+build: the reconcile kept `trigger_seq=2`/`delivered_seq=1`, the later drain
+preserved the absolute `snoozed_until`, exactly one alarm remained at the snooze
+instant, the attempt re-fired exactly once, and the following foreground merge
+recorded `delivered_seq=2` while keeping the notification visible. The recurring-occurrence and
+deliberate-edit legs were verified earlier on the same F2 code
+(`20261028-115012`, `20261028-115212`): dismissing one occurrence kept the 9
+later alarms, and a date/time edit after the dismissal alerted again with a new
+schedule id and request code. Local regression tests cover the cases the device
+flow cannot reach quickly (cap accounting, stale callbacks, cache merge).
 
 ## Case checklist
 
@@ -287,6 +393,12 @@ the task row that was materialized.
 | --- | ---------------- | ------------------------------------------------------------------------------------------------------------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------- | --------------------------------------------------- |
 | 46  | M4 -> M5 upgrade | Install the M4 dev APK, create a few reminders, then install the M5 dev APK over it without clearing data. Open the app. | M5 tables are created in one transaction; legacy `task_reminders` rows are left intact but are not projected; the first reconcile cancels M4 alarms and schedules only M5 rows; no crash, no duplicate notification. | `sqlite_master`, alarm dump, logcat | Blocked - needs M4 APK + data (phone offline 14:21) |
 
+### Delivery and dismissal (F2)
+
+| #   | Case                                                | Steps                                                                                                                                                                                                                                                                                                                                                                                                                                            | Expected result                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                       | Evidence                                                                                                    | Status                              |
+| --- | --------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------- | ----------------------------------- |
+| 47  | F2 - delivered trigger never re-alerts on reconcile | 1) Create a task due in 2 minutes with `At due time`, let it fire. 2) Snooze 10 min from the shade; let the snoozed notification fire. 3) Swipe that notification away. 4) Force-stop, relaunch twice, then toggle a notification setting to force a reconcile. 5) Repeat with a delivered notification left visible (do not dismiss). 6) Create a daily recurring reminder and let occurrence N fire and be dismissed; wait for occurrence N+1. | Delivered + dismissed: no second POSTED, no new `NotificationRecord`, `notification_schedule.status='fired'`, `delivered_seq >= trigger_seq`, `dismissed_seq` set, `dismissed_at` set, one `notification-dismiss` `reminder_event`, task still `todo`, alarm list empty for that schedule. Delivered + visible: notification stays in the shade across relaunch/reconcile, still exactly one POSTED. Snooze before dismissal: snooze fires exactly once (one new POSTED), `trigger_seq` incremented once. Occurrence N+1 still alerts with a different schedule id and request code. Restart/cache replacement keeps `delivered_seq`/`dismissed_seq`. | `nova.db` (task/reminder/schedule/event rows), `dumpsys notification`, `dumpsys alarm`, logcat POSTED lines | Pass (2026-10-28, NOTE 24 / API 33) |
+
 ### Run outcome - 2026-10-26 (session interrupted at 14:21)
 
 Cases 15-46 were not reached. adb over Wi-Fi dropped at ~14:21 and the phone was
@@ -309,21 +421,26 @@ Implementation complete. Device verification partial and paused.
 
 - Implementation: complete (M5 scope only).
 - TypeScript typecheck, lint, Prettier: pass.
-- Jest: pass, 18 suites / 123 tests.
+- Jest: pass, 19 suites / 140 tests (includes the F2 regressions and the schema
+  v2 migration/backfill suite).
 - Font and Android config audits: pass.
 - Android unit tests: pass (`testDevDebugUnitTest`), dev APK builds and installs
   (`installDevDebug`).
-- Device verification: **14/46 cases passed on a single API 33 device**; the
+- Device verification: **15/47 cases passed on a single API 33 device** (the
+  original 46 are unchanged at 14 pass; case 47 passed on 2026-10-28). The
   API 26-30 leg has not started.
-- Commit/build: `b13ae46` (cases 10-12) plus the uncommitted F1 fix
-  (`ReminderPolicy.shouldCancelStaleNotification`, scheduler guard, Kotlin test)
-  and these documentation updates.
+- Commit/build: `b13ae46` (cases 10-12), `4182a22` (F1 fix, CI run
+  `40638154853` success), plus the F2 fix commit (attempt identity, dismissal
+  path, migration v2, regression tests, and these documentation updates). Case
+  47, the F1 re-verification, and the stale-snooze path were run against the
+  final F2 `installDevDebug` build.
 
 ### Devices
 
-| Run ID     | Device  | Android/API         | Time zone    | Result                         |
-| ---------- | ------- | ------------------- | ------------ | ------------------------------ |
-| 2026-10-26 | NOTE 24 | Android 13 / API 33 | Asia/Karachi | 14 pass, 5 blocked, 27 not run |
+| Run ID     | Device  | Android/API         | Time zone    | Result                                   |
+| ---------- | ------- | ------------------- | ------------ | ---------------------------------------- |
+| 2026-10-26 | NOTE 24 | Android 13 / API 33 | Asia/Karachi | 14 pass, 5 blocked, 27 not run           |
+| 2026-10-28 | NOTE 24 | Android 13 / API 33 | Asia/Karachi | case 47 pass, F1 + stale-snooze verified |
 
 No other device was exercised. Wireless adb is the only transport used, and it
 dropped twice during the session (the second time ended the run), so treat
@@ -331,10 +448,14 @@ long-wait observations as fragile until a USB connection is available.
 
 ### Case summary
 
-- Passed: 14/46 (1-14)
-- Failed: 0/46
-- Blocked: 5/46 (17, 19, 20, 22, 46)
-- Not run: 27/46 (15, 16, 18, 21, 23-45)
+Pack size: 47 cases (the original 46 plus case 47, the F2 regression). The
+original 46 keep their recorded result; case 47 is new and passed on 2026-10-28.
+
+- Passed: 14/46 original (1-14); 15/47 overall (case 47 added and passed)
+- Failed: 0/46 original; 0/47 overall
+- Blocked: 5/46 original (17, 19, 20, 22, 46)
+- Not run: 27/46 original (15, 16, 18, 21, 23-45)
+- New case: 47 (F2 delivered-trigger dismissal/delivery) - Pass on 2026-10-28
 
 ### Coverage gaps (explicit)
 
@@ -351,7 +472,7 @@ long-wait observations as fragile until a USB connection is available.
 ### Evidence
 
 - Evidence directory: `artifacts/device/<timestamp>/` (gitignored), 47 pulls
-  from 2026-10-26. Key runs:
+  from 2026-10-26 plus 10 from 2026-10-28. Key runs:
   - `20261026-131741` / `131808` / `131836` - case 4 delete + undo.
   - `20261026-124933` - case 8 subtask rows.
   - `20261026-132353` / `132646` - case 10 exact alarm + delivery.
@@ -360,6 +481,15 @@ long-wait observations as fragile until a USB connection is available.
   - `20261026-135757` / `135826` / `140806` - case 13 snooze before, after,
     and the re-fire (`shade.png`, `logcat.txt`).
   - `20261026-140840` / `141245` - F1 dismissal and the F2 duplicate POSTED.
+  - `20261028-112627-f2-migration` - schema v2 applied to existing M5 data.
+  - `20261028-113030-f2-visible-reconcile` - delivered + visible survives reconcile.
+  - `20261028-113141-f2-snoozed` - snooze starts exactly one new attempt.
+  - `20261028-114218-f1-refire-foreground` - F1 re-verification (notification stays).
+  - `20261028-114340-case47-dismissed-relaunch` - dismissal survives two relaunches.
+  - `20261028-114451-case47-quiet-reconcile` - settings reconcile does not re-alert.
+  - `20261028-115012-case47-recur-dismissed` - later recurring alarms survive.
+  - `20261028-115212-case47-edit-newschedule` / `115241-...-reconciled` - a
+    deliberate new schedule alerts again.
 - Alarm dump: `alarms.txt` in each evidence directory.
 - Notification dump: `notifications.txt` (live `NotificationRecord` lines only;
   `StatusBarNotification` entries after `mArchive=` are cancelled).
@@ -371,25 +501,26 @@ long-wait observations as fragile until a USB connection is available.
 
 | Case | Device  | Failure                                                                                                                | Evidence                                  | Owner | Next action                                                            |
 | ---- | ------- | ---------------------------------------------------------------------------------------------------------------------- | ----------------------------------------- | ----- | ---------------------------------------------------------------------- |
-| 13   | NOTE 24 | F1: delivered snoozed notification dismissed by the next foreground reconcile                                          | `20261026-140806`, `140840`               | dev   | fixed in code + unit test; device re-verification outstanding          |
-| 13   | NOTE 24 | F2: delivered reminder with no visible notification re-fires on the next reconcile                                     | `20261026-141245` (`14:11:50.687 POSTED`) | dev   | open - decide dismiss-final vs re-alert before shipping                |
+| 13   | NOTE 24 | F1: delivered snoozed notification dismissed by the next foreground reconcile                                          | `20261026-140806`, `140840`               | dev   | device-verified 2026-10-28 (`20261028-114218-f1-refire-foreground`)    |
+| 13   | NOTE 24 | F2: delivered reminder with no visible notification re-fires on the next reconcile                                     | `20261026-141245` (`14:11:50.687 POSTED`) | dev   | device-verified 2026-10-28 as case 47                                  |
 | -    | -       | No API 26-30 device available                                                                                          | -                                         | user  | run the legacy leg on a second phone or an API 30 emulator             |
 | 10   | NOTE 24 | Case run as "due 13:26 with At due time" (3-minute wait), not the literal "due in 2 minutes with a 10-minute reminder" | `20261026-132353`, `132646`               | dev   | accepted: same one-off exact path; noted, not an equivalent-step claim |
 | 13   | NOTE 24 | Case run with quiet hours `14:00-16:00` rather than `22:00-07:00`                                                      | `20261026-135826`                         | dev   | accepted: proves snooze overrides an active quiet window               |
 
 ### Decision
 
-M5 is NOT complete. 14 of 46 cases have device evidence on one API 33 phone and
-the required API 26-30 leg is missing, so neither multi-device nor full-pack
-sign-off is claimed.
+M5 is NOT complete. 15 of 47 cases have device evidence on one API 33 phone (the
+original 46 remain at 14 pass; case 47 and the F1 re-verification passed on
+2026-10-28), and the required API 26-30 leg is missing, so neither multi-device
+nor full-pack sign-off is claimed.
 
 - [x] Implementation scope limited to M5 (no AI, billing, voice, cloud sync,
       widgets, templates, or M6 work started).
 - [x] Local verification green after the last code change.
-- [ ] All 46 cases pass on required devices.
+- [ ] All 47 cases pass on required devices.
 - [ ] Legacy (API 26-30) evidence captured.
 - [ ] Recurrence vectors and DST cases confirmed on device.
-- [ ] F1 device re-verification and the F2 dismissal decision closed.
+- [x] F1 device re-verification and case 47 (F2) closed.
 - [ ] Evidence archived.
 
 ## Instructions to run the checklist

@@ -22,7 +22,8 @@ const REMINDER_COLUMNS = `id, task_id, label, kind, offset_minutes, local_date, 
 
 const SCHEDULE_COLUMNS = `id, reminder_id, task_id, occurrence_id, dedupe_key, local_date,
   local_time, timezone, scheduled_at, snoozed_until, request_code, is_exact_requested,
-  state, reason, status, last_fired_at, created_at, updated_at`;
+  state, reason, status, last_fired_at, trigger_seq, delivered_seq, dismissed_seq,
+  dismissed_at, created_at, updated_at`;
 
 function kindValue(value: string): ReminderDefinition['kind'] {
   return value === 'absolute' ? 'absolute' : 'relative';
@@ -84,6 +85,10 @@ export function rowToSchedule(row: SqliteRow): NotificationScheduleRecord {
     reason: nullableText(row, 'reason'),
     status: scheduleStatus(textValue(row, 'status')),
     lastFiredAt: nullableNumber(row, 'last_fired_at'),
+    triggerSeq: numberValue(row, 'trigger_seq'),
+    deliveredSeq: numberValue(row, 'delivered_seq'),
+    dismissedSeq: numberValue(row, 'dismissed_seq'),
+    dismissedAt: nullableNumber(row, 'dismissed_at'),
     createdAt: numberValue(row, 'created_at'),
     updatedAt: numberValue(row, 'updated_at'),
   };
@@ -179,7 +184,7 @@ export async function insertSchedule(
 ): Promise<void> {
   await db.execute(
     `INSERT INTO notification_schedule (${SCHEDULE_COLUMNS})
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     [
       schedule.id,
       schedule.reminderId,
@@ -197,6 +202,10 @@ export async function insertSchedule(
       nullable(schedule.reason),
       schedule.status,
       nullable(schedule.lastFiredAt),
+      schedule.triggerSeq,
+      schedule.deliveredSeq,
+      schedule.dismissedSeq,
+      nullable(schedule.dismissedAt),
       schedule.createdAt,
       schedule.updatedAt,
     ],
@@ -211,7 +220,8 @@ export async function updateScheduleRow(
     `UPDATE notification_schedule SET reminder_id = ?, task_id = ?, occurrence_id = ?,
       dedupe_key = ?, local_date = ?, local_time = ?, timezone = ?, scheduled_at = ?,
       snoozed_until = ?, request_code = ?, is_exact_requested = ?, state = ?, reason = ?,
-      status = ?, last_fired_at = ?, updated_at = ?
+      status = ?, last_fired_at = ?, trigger_seq = ?, delivered_seq = ?, dismissed_seq = ?,
+      dismissed_at = ?, updated_at = ?
      WHERE id = ?`,
     [
       schedule.reminderId,
@@ -229,6 +239,10 @@ export async function updateScheduleRow(
       nullable(schedule.reason),
       schedule.status,
       nullable(schedule.lastFiredAt),
+      schedule.triggerSeq,
+      schedule.deliveredSeq,
+      schedule.dismissedSeq,
+      nullable(schedule.dismissedAt),
       schedule.updatedAt,
       schedule.id,
     ],
@@ -264,7 +278,7 @@ export async function upsertSchedule(
 ): Promise<void> {
   await db.execute(
     `INSERT INTO notification_schedule (${SCHEDULE_COLUMNS})
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
      ON CONFLICT(id) DO UPDATE SET
        reminder_id = excluded.reminder_id,
        task_id = excluded.task_id,
@@ -280,7 +294,11 @@ export async function upsertSchedule(
        state = excluded.state,
        reason = excluded.reason,
        status = excluded.status,
-       last_fired_at = excluded.last_fired_at,
+       last_fired_at = COALESCE(excluded.last_fired_at, notification_schedule.last_fired_at),
+       trigger_seq = MAX(notification_schedule.trigger_seq, excluded.trigger_seq),
+       delivered_seq = MAX(notification_schedule.delivered_seq, excluded.delivered_seq),
+       dismissed_seq = MAX(notification_schedule.dismissed_seq, excluded.dismissed_seq),
+       dismissed_at = COALESCE(excluded.dismissed_at, notification_schedule.dismissed_at),
        updated_at = excluded.updated_at`,
     [
       schedule.id,
@@ -299,6 +317,10 @@ export async function upsertSchedule(
       nullable(schedule.reason),
       schedule.status,
       nullable(schedule.lastFiredAt),
+      schedule.triggerSeq,
+      schedule.deliveredSeq,
+      schedule.dismissedSeq,
+      nullable(schedule.dismissedAt),
       schedule.createdAt,
       schedule.updatedAt,
     ],

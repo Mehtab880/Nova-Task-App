@@ -11,6 +11,7 @@ export const REMINDER_SCHEDULE_STATES = [
   'inexact-overdue',
   'deferred-cap',
   'error',
+  'delivered',
   'delivered-active',
   'blocked-notification-permission',
   'blocked-notification-channel',
@@ -55,6 +56,13 @@ export interface NativeReminderInput {
   readonly localDate?: string | null;
   readonly localTime?: string | null;
   readonly timezone?: string;
+  /** Delivery attempt this row currently represents. Starts at 1. */
+  readonly triggerSeq?: number;
+  /** Highest attempt already posted by the native receiver. */
+  readonly deliveredSeq?: number;
+  /** Highest attempt explicitly dismissed by the user. */
+  readonly dismissedSeq?: number;
+  readonly dismissedAt?: number | null;
 }
 
 export interface NativeScheduleResult {
@@ -64,6 +72,11 @@ export interface NativeScheduleResult {
   readonly reason: string | null;
   readonly scheduledFor: number | null;
   readonly notificationActive: boolean;
+  readonly triggerSeq: number;
+  readonly deliveredSeq: number;
+  readonly dismissedSeq: number;
+  readonly dismissedAt: number | null;
+  readonly lastFiredAt: number | null;
 }
 
 export interface NativeReconcileResult {
@@ -79,11 +92,13 @@ export interface NativeReconcileResult {
 
 export interface NativeReminderAction {
   readonly actionId: string;
-  readonly type: 'complete' | 'snooze';
+  readonly type: 'complete' | 'snooze' | 'dismiss';
   readonly reminderId: string;
   readonly requestCode: number;
   readonly occurredAt: number;
   readonly snoozedUntil: number | null;
+  /** Attempt the callback belongs to. 0 means a legacy action without identity. */
+  readonly seq: number;
   readonly title: string;
   readonly body: string;
 }
@@ -99,6 +114,10 @@ export interface NativeStoredAlarm {
   readonly scheduledAt: number | null;
   readonly lastFiredAt: number | null;
   readonly deliveryState: string | null;
+  readonly triggerSeq: number;
+  readonly deliveredSeq: number;
+  readonly dismissedSeq: number;
+  readonly dismissedAt: number | null;
   readonly pendingIntentExists: boolean;
 }
 

@@ -128,6 +128,16 @@ export function stableScheduleId(key: string): string {
   return `schedule_${hashA.toString(16).padStart(8, '0')}${hashB.toString(16).padStart(8, '0')}`;
 }
 
+/**
+ * A logical trigger is delivered when the attempt that was posted is at least
+ * the current attempt. `trigger_seq` only advances on an explicit snooze, so a
+ * recomputed wall time (quiet hours, time zone, clock change) can never make a
+ * delivered trigger look pending again.
+ */
+export function isScheduleDelivered(triggerSeq: number, deliveredSeq: number): boolean {
+  return triggerSeq > 0 && deliveredSeq >= triggerSeq;
+}
+
 function existingForKey(
   existingByKey: ReadonlyMap<string, NotificationScheduleRecord>,
   key: string,
@@ -254,7 +264,10 @@ export function buildReconcilePlan(input: ReconcileInput): ReconcilePlan {
   });
 
   const usedCodes = new Set<number>();
-  const planned: PlannedSchedule[] = sortedDrafts.map(draft => {
+  const pending: PlannedSchedule[] = [];
+  const delivered: PlannedSchedule[] = [];
+
+  for (const draft of sortedDrafts) {
     const existingRow = existingForKey(existingByKey, draft.dedupeKey);
     let requestCode = existingRow?.requestCode ?? 0;
     if (requestCode === 0) {
@@ -270,7 +283,12 @@ export function buildReconcilePlan(input: ReconcileInput): ReconcilePlan {
       [draft.reminder.label, draft.task.notes].filter(part => part.trim().length > 0).join(' · '),
       500,
     );
-    return {
+    const triggerSeq = existingRow?.triggerSeq ?? 1;
+    const deliveredSeq = existingRow?.deliveredSeq ?? 0;
+    const dismissedSeq = existingRow?.dismissedSeq ?? 0;
+    const dismissedAt = existingRow?.dismissedAt ?? null;
+    const alreadyDelivered = isScheduleDelivered(triggerSeq, deliveredSeq);
+    const schedule: PlannedSchedule = {
       id: existingRow?.id ?? stableScheduleId(draft.dedupeKey),
       reminderId: draft.reminder.id,
       taskId: draft.task.id,
@@ -283,31 +301,43 @@ export function buildReconcilePlan(input: ReconcileInput): ReconcilePlan {
       snoozedUntil: draft.snoozedUntil,
       requestCode,
       isExactRequested: draft.reminder.isExact,
-      state: 'pending',
-      reason:
-        draft.snoozedUntil === null ? draft.reason : (draft.reason ?? 'snoozed-from-notification'),
-      status: 'scheduled',
+      state: alreadyDelivered ? 'delivered' : 'pending',
+      reason: alreadyDelivered
+        ? 'already-delivered'
+        : draft.snoozedUntil === null
+          ? draft.reason
+          : (draft.reason ?? 'snoozed-from-notification'),
+      status: alreadyDelivered ? 'fired' : 'scheduled',
       lastFiredAt: existingRow?.lastFiredAt ?? null,
+      triggerSeq,
+      deliveredSeq,
+      dismissedSeq,
+      dismissedAt,
       title,
       body,
       createdAt: existingRow?.createdAt ?? now,
       updatedAt: now,
     };
-  });
+    if (alreadyDelivered) {
+      delivered.push(schedule);
+    } else {
+      pending.push(schedule);
+    }
+  }
 
   const cap = Math.max(1, settings.maxPendingAlarms);
-  const desired = planned.slice(0, cap);
-  const overflow = planned.slice(cap).map(schedule => ({
+  // Only pending attempts consume capacity; delivered history never does.
+  const desired = pending.slice(0, cap);
+  const overflow = pending.slice(cap).map(schedule => ({
     ...schedule,
     state: 'deferred-cap',
     reason: 'pending-alarm-cap',
   }));
 
-  const desiredIds = new Set(desired.map(schedule => schedule.id));
-  const overflowIds = new Set(overflow.map(schedule => schedule.id));
-  const dropped = existing.filter(row => !desiredIds.has(row.id) && !overflowIds.has(row.id));
+  const liveIds = new Set([...desired, ...overflow, ...delivered].map(schedule => schedule.id));
+  const dropped = existing.filter(row => !liveIds.has(row.id));
 
-  return { desired, overflow, dropped };
+  return { desired, overflow, delivered, dropped };
 }
 
 export function toNativeInput(schedule: PlannedSchedule): {
@@ -320,6 +350,10 @@ export function toNativeInput(schedule: PlannedSchedule): {
   readonly localDate: string | null;
   readonly localTime: string | null;
   readonly timezone: string;
+  readonly triggerSeq: number;
+  readonly deliveredSeq: number;
+  readonly dismissedSeq: number;
+  readonly dismissedAt: number | null;
 } {
   return {
     id: schedule.id,
@@ -332,6 +366,10 @@ export function toNativeInput(schedule: PlannedSchedule): {
     localDate: schedule.snoozedUntil === null ? schedule.localDate : null,
     localTime: schedule.snoozedUntil === null ? schedule.localTime : null,
     timezone: schedule.timezone,
+    triggerSeq: schedule.triggerSeq,
+    deliveredSeq: schedule.deliveredSeq,
+    dismissedSeq: schedule.dismissedSeq,
+    dismissedAt: schedule.dismissedAt,
   };
 }
 
@@ -349,7 +387,12 @@ export function applyNativeScheduleAction(
     });
   }
 
+  // A callback for an attempt that has already been superseded must never be
+  // applied to the newer attempt. seq 0 is a legacy action without identity.
+  const currentAttempt = action.seq <= 0 || action.seq === schedule.triggerSeq;
+
   if (action.type === 'complete') {
+    if (!currentAttempt) return null;
     if (schedule.status === 'completed' || schedule.status === 'cancelled') return null;
     return {
       ...schedule,
@@ -362,7 +405,23 @@ export function applyNativeScheduleAction(
   }
 
   if (action.type === 'snooze') {
-    if (schedule.status !== 'scheduled') return null;
+    // A snooze that started the current attempt can be drained after a
+    // reconcile already copied `trigger_seq` from the native cache. Apply its
+    // absolute time without starting a second attempt, but only while that
+    // attempt is still undelivered. Older replays and future seqs are stale.
+    const startsNewAttempt = action.seq <= 0 || action.seq === schedule.triggerSeq;
+    const completesCurrentAttempt =
+      action.seq > 0 &&
+      action.seq === schedule.triggerSeq - 1 &&
+      schedule.deliveredSeq < schedule.triggerSeq &&
+      // A replay of an action that was already persisted is a no-op.
+      schedule.snoozedUntil === null;
+    if (!startsNewAttempt && !completesCurrentAttempt) return null;
+    // A delivered row is persisted as `fired`; only terminal rows are excluded.
+    if (schedule.status === 'completed' || schedule.status === 'cancelled') return null;
+    // Delivery itself was validated by the native receiver that queued this
+    // action; the durable queue is the trusted transport. The seq check above
+    // is what rejects stale attempts.
     const fallback = now + Math.max(1, snoozeMinutes) * 60_000;
     const until =
       action.snoozedUntil !== null && action.snoozedUntil > now ? action.snoozedUntil : fallback;
@@ -373,6 +432,22 @@ export function applyNativeScheduleAction(
       reason: 'snoozed-from-notification',
       scheduledAt: until,
       snoozedUntil: until,
+      // The snooze is the only thing that starts a new delivery attempt.
+      triggerSeq: startsNewAttempt ? schedule.triggerSeq + 1 : schedule.triggerSeq,
+      updatedAt: now,
+    };
+  }
+
+  if (action.type === 'dismiss') {
+    // Dismissal is history, never a scheduling input. It must never complete
+    // the task, cancel a recurrence, or suppress a newer attempt.
+    if (action.seq <= 0) return null;
+    if (action.seq !== schedule.triggerSeq) return null;
+    if (schedule.dismissedSeq >= action.seq) return null;
+    return {
+      ...schedule,
+      dismissedSeq: action.seq,
+      dismissedAt: now,
       updatedAt: now,
     };
   }

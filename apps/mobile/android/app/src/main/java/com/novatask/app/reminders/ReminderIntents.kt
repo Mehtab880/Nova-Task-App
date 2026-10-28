@@ -12,12 +12,14 @@ internal object ReminderIntents {
     const val ACTION_FIRE = "com.novatask.app.reminders.FIRE"
     const val ACTION_COMPLETE = "com.novatask.app.reminders.COMPLETE"
     const val ACTION_SNOOZE = "com.novatask.app.reminders.SNOOZE"
+    const val ACTION_DISMISS = "com.novatask.app.reminders.DISMISS"
 
     const val EXTRA_REMINDER_ID = "reminder_id"
     const val EXTRA_REQUEST_CODE = "request_code"
     const val EXTRA_TITLE = "title"
     const val EXTRA_BODY = "body"
     const val EXTRA_SNOOZE_MINUTES = "snooze_minutes"
+    const val EXTRA_TRIGGER_SEQ = "trigger_seq"
 
     private const val BASE_FLAGS = PendingIntent.FLAG_IMMUTABLE
 
@@ -61,6 +63,21 @@ internal object ReminderIntents {
     fun snoozePendingIntent(context: Context, reminder: StoredReminder): PendingIntent =
         actionPendingIntent(context, reminder, ACTION_SNOOZE)
 
+    /** Fires when the user swipes the notification away. */
+    fun dismissPendingIntent(context: Context, reminder: StoredReminder): PendingIntent =
+        PendingIntent.getBroadcast(
+            context,
+            ReminderPolicy.dismissActionRequestCode(reminder.requestCode),
+            actionIntent(
+                context,
+                reminder.id,
+                reminder.requestCode,
+                ACTION_DISMISS,
+                reminder.triggerSeq,
+            ),
+            BASE_FLAGS or PendingIntent.FLAG_UPDATE_CURRENT,
+        )
+
     fun contentPendingIntent(context: Context, reminder: StoredReminder): PendingIntent =
         PendingIntent.getActivity(
             context,
@@ -73,12 +90,19 @@ internal object ReminderIntents {
         listOf(
                 ACTION_COMPLETE to ReminderPolicy.completeActionRequestCode(reminder.requestCode),
                 ACTION_SNOOZE to ReminderPolicy.snoozeActionRequestCode(reminder.requestCode),
+                ACTION_DISMISS to ReminderPolicy.dismissActionRequestCode(reminder.requestCode),
             )
             .forEach { (action, requestCode) ->
                 PendingIntent.getBroadcast(
                         context,
                         requestCode,
-                        actionIntent(context, reminder.id, reminder.requestCode, action),
+                        actionIntent(
+                            context,
+                            reminder.id,
+                            reminder.requestCode,
+                            action,
+                            reminder.triggerSeq,
+                        ),
                         BASE_FLAGS or PendingIntent.FLAG_NO_CREATE,
                     )
                     ?.cancel()
@@ -106,11 +130,12 @@ internal object ReminderIntents {
         return PendingIntent.getBroadcast(
             context,
             requestCode,
-            actionIntent(context, reminder.id, reminder.requestCode, action).apply {
-                putExtra(EXTRA_TITLE, reminder.title)
-                putExtra(EXTRA_BODY, reminder.body)
-                putExtra(EXTRA_SNOOZE_MINUTES, DEFAULT_SNOOZE_MINUTES)
-            },
+            actionIntent(context, reminder.id, reminder.requestCode, action, reminder.triggerSeq)
+                .apply {
+                    putExtra(EXTRA_TITLE, reminder.title)
+                    putExtra(EXTRA_BODY, reminder.body)
+                    putExtra(EXTRA_SNOOZE_MINUTES, DEFAULT_SNOOZE_MINUTES)
+                },
             BASE_FLAGS or PendingIntent.FLAG_UPDATE_CURRENT,
         )
     }
@@ -123,6 +148,7 @@ internal object ReminderIntents {
             reminder.title,
             reminder.body,
             reminder.triggerAt,
+            reminder.triggerSeq,
         )
 
     private fun alarmIntent(
@@ -132,6 +158,7 @@ internal object ReminderIntents {
         title: String,
         body: String,
         triggerAt: Long,
+        triggerSeq: Int = 0,
     ): Intent =
         Intent(context, ReminderAlarmReceiver::class.java).apply {
             action = ACTION_FIRE
@@ -141,6 +168,7 @@ internal object ReminderIntents {
             putExtra(EXTRA_TITLE, title)
             putExtra(EXTRA_BODY, body)
             putExtra("trigger_at", triggerAt)
+            putExtra(EXTRA_TRIGGER_SEQ, triggerSeq)
         }
 
     private fun contentIntent(context: Context, reminder: StoredReminder): Intent =
@@ -157,11 +185,13 @@ internal object ReminderIntents {
         reminderId: String,
         requestCode: Int,
         action: String,
+        triggerSeq: Int,
     ): Intent =
         Intent(context, ReminderActionReceiver::class.java).apply {
             this.action = action
             data = Uri.parse("novatask://reminder/$reminderId/$action")
             putExtra(EXTRA_REMINDER_ID, reminderId)
             putExtra(EXTRA_REQUEST_CODE, requestCode)
+            putExtra(EXTRA_TRIGGER_SEQ, triggerSeq)
         }
 }

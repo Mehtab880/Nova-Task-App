@@ -131,7 +131,13 @@ async function persistPlan(plan: ReconcilePlan): Promise<ProjectionInput> {
     for (const row of plan.dropped) {
       await deleteSchedule(db, row.id);
     }
-    const all: readonly PlannedSchedule[] = [...plan.desired, ...plan.overflow];
+    const all: readonly PlannedSchedule[] = [
+      ...plan.desired,
+      ...plan.overflow,
+      // Delivered rows are persisted so delivery history and request-code
+      // reservations survive, but they are never re-armed or capped.
+      ...plan.delivered,
+    ];
     for (const row of all) {
       await upsertSchedule(db, row);
     }
@@ -163,10 +169,35 @@ async function persistNativeResult(
     for (const result of native.results) {
       const row = await findSchedule(db, result.id);
       if (row === null) continue;
+      // Delivery is only recorded from what the native receiver actually
+      // posted; `state = exact/inexact` only means scheduling succeeded.
       await db.execute(
-        `UPDATE notification_schedule SET state = ?, reason = ?,
-          scheduled_at = COALESCE(?, scheduled_at), updated_at = ? WHERE id = ?`,
-        [result.state, result.reason, result.scheduledFor, now, result.id],
+        `UPDATE notification_schedule SET
+          state = ?, reason = ?,
+          scheduled_at = COALESCE(?, scheduled_at),
+          trigger_seq = MAX(trigger_seq, ?),
+          delivered_seq = MAX(delivered_seq, ?),
+          dismissed_seq = MAX(dismissed_seq, ?),
+          dismissed_at = COALESCE(dismissed_at, ?),
+          last_fired_at = COALESCE(?, last_fired_at),
+          status = CASE WHEN ? > 0 AND ? >= MAX(trigger_seq, ?) THEN 'fired' ELSE status END,
+          updated_at = ?
+        WHERE id = ?`,
+        [
+          result.state,
+          result.reason,
+          result.scheduledFor,
+          result.triggerSeq,
+          result.deliveredSeq,
+          result.dismissedSeq,
+          result.dismissedAt,
+          result.lastFiredAt,
+          result.deliveredSeq,
+          result.deliveredSeq,
+          result.triggerSeq,
+          now,
+          result.id,
+        ],
       );
     }
     await writeSetting(db, 'last_reconcile_at', String(now), now);
@@ -203,7 +234,10 @@ async function runReconcile(
 
   const [state, native] = await Promise.all([
     port.getNotificationState().catch(() => null),
-    port.reconcile(projected.plan.desired.map(toNativeInput), reason),
+    port.reconcile(
+      [...projected.plan.desired, ...projected.plan.delivered].map(toNativeInput),
+      reason,
+    ),
   ]);
   await persistNativeResult(native, reason, state);
 
@@ -233,6 +267,7 @@ function actionToScheduleAction(action: NativeReminderAction): {
   scheduleId: string;
   requestCode: number;
   snoozedUntil: number | null;
+  seq: number;
 } {
   return {
     actionId: action.actionId,
@@ -241,6 +276,7 @@ function actionToScheduleAction(action: NativeReminderAction): {
     scheduleId: action.reminderId,
     requestCode: action.requestCode,
     snoozedUntil: action.snoozedUntil,
+    seq: action.seq,
   };
 }
 
@@ -309,17 +345,6 @@ export async function drainNativeActions(
     acknowledged,
     failed: actions.length - appliedIds.length,
   };
-}
-
-export async function markScheduleFiredByNativeId(scheduleId: string, now: number): Promise<void> {
-  await m5Transaction(async db => {
-    const row = await findSchedule(db, scheduleId);
-    if (row === null) return;
-    await db.execute(
-      `UPDATE notification_schedule SET state = 'fired', last_fired_at = ?, updated_at = ? WHERE id = ?`,
-      [now, now, scheduleId],
-    );
-  });
 }
 
 export async function getNativeNotificationState(): Promise<NativeNotificationState | null> {

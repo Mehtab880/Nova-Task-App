@@ -54,6 +54,13 @@ export interface NotificationScheduleRecord {
   readonly reason: string | null;
   readonly status: ScheduleStatus;
   readonly lastFiredAt: number | null;
+  /** Delivery attempt this row currently represents. Starts at 1. */
+  readonly triggerSeq: number;
+  /** Highest attempt that was actually posted by the native receiver. */
+  readonly deliveredSeq: number;
+  /** Highest attempt the user explicitly dismissed. Never a scheduling input. */
+  readonly dismissedSeq: number;
+  readonly dismissedAt: number | null;
   readonly createdAt: number;
   readonly updatedAt: number;
 }
@@ -106,6 +113,10 @@ export interface PlannedSchedule {
   readonly reason: string | null;
   readonly status: ScheduleStatus;
   readonly lastFiredAt: number | null;
+  readonly triggerSeq: number;
+  readonly deliveredSeq: number;
+  readonly dismissedSeq: number;
+  readonly dismissedAt: number | null;
   readonly title: string;
   readonly body: string;
   readonly createdAt: number;
@@ -122,10 +133,16 @@ export interface ReconcileInput {
 }
 
 export interface ReconcilePlan {
-  /** At most settings.maxPendingAlarms schedules, earliest first. */
+  /** At most settings.maxPendingAlarms pending schedules, earliest first. */
   readonly desired: readonly PlannedSchedule[];
-  /** Schedules beyond the cap. Persisted but not handed to the native layer. */
+  /** Pending schedules beyond the cap. Persisted but not handed to the native layer. */
   readonly overflow: readonly PlannedSchedule[];
+  /**
+   * Logical triggers that were already delivered. Persisted (so delivery
+   * history and request-code reservations survive) but never re-armed and never
+   * counted toward the pending-alarm cap.
+   */
+  readonly delivered: readonly PlannedSchedule[];
   /** Existing rows whose identity is no longer desired. */
   readonly dropped: readonly NotificationScheduleRecord[];
 }
@@ -136,4 +153,6 @@ export interface NativeActionLike {
   readonly scheduleId: string;
   readonly requestCode: number;
   readonly snoozedUntil: number | null;
+  /** Attempt the callback belongs to. 0 means a legacy action without identity. */
+  readonly seq: number;
 }

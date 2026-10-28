@@ -13,7 +13,11 @@ internal class ReminderActionReceiver : BroadcastReceiver() {
 
     override fun onReceive(context: Context, intent: Intent) {
         val action = intent.action ?: return
-        if (action != ReminderIntents.ACTION_COMPLETE && action != ReminderIntents.ACTION_SNOOZE) {
+        if (
+            action != ReminderIntents.ACTION_COMPLETE &&
+                action != ReminderIntents.ACTION_SNOOZE &&
+                action != ReminderIntents.ACTION_DISMISS
+        ) {
             return
         }
         val pendingResult = goAsync()
@@ -39,11 +43,47 @@ internal class ReminderActionReceiver : BroadcastReceiver() {
         val notifier = ReminderNotifier(context)
         val scheduler = ReminderScheduler(context, store)
         val cached = store.find(fallback.id)
+        if (action == ReminderIntents.ACTION_DISMISS && cached == null) {
+            Log.w(TAG, "Ignoring dismissal for uncached reminder ${fallback.id}")
+            return
+        }
         val reminder = cached ?: fallback.copy(triggerAt = fallback.triggerAt.takeIf { it > 0 } ?: System.currentTimeMillis())
         val now = System.currentTimeMillis()
+        val seq = intent.getIntExtra(ReminderIntents.EXTRA_TRIGGER_SEQ, 0)
 
         if (cached != null && cached.requestCode != fallback.requestCode) {
             Log.w(TAG, "Ignoring action with a stale request code for ${fallback.id}")
+            return
+        }
+
+        // Dismissal is history only: it never completes the task, never cancels
+        // a recurrence, and never feeds the scheduler.
+        if (action == ReminderIntents.ACTION_DISMISS) {
+            if (!ReminderPolicy.isDismissalForDeliveredAttempt(seq, reminder)) {
+                Log.i(TAG, "Ignoring stale dismissal for ${reminder.id}")
+                return
+            }
+            val dismissed = reminder.copy(dismissedSeq = seq, dismissedAt = now, updatedAt = now)
+            store.update(reminder.id) { dismissed }
+            queue.enqueue(
+                NativeAction(
+                    actionId = "$ACTION_DISMISS-${reminder.id}-$seq",
+                    type = ACTION_DISMISS,
+                    reminderId = reminder.id,
+                    requestCode = reminder.requestCode,
+                    occurredAt = now,
+                    seq = seq,
+                    title = reminder.title,
+                    body = reminder.body,
+                ),
+            )
+            ReminderIntents.cancelAlarm(context, reminder.id, reminder.requestCode)
+            Log.i(TAG, "Dismissed reminder ${reminder.id} attempt $seq")
+            return
+        }
+
+        if (!ReminderPolicy.isActionForCurrentAttempt(seq, reminder)) {
+            Log.w(TAG, "Ignoring stale $action for ${reminder.id}")
             return
         }
 
@@ -73,6 +113,7 @@ internal class ReminderActionReceiver : BroadcastReceiver() {
                         reminderId = reminder.id,
                         requestCode = reminder.requestCode,
                         occurredAt = now,
+                        seq = seq,
                         title = reminder.title,
                         body = reminder.body,
                     ),
@@ -81,6 +122,11 @@ internal class ReminderActionReceiver : BroadcastReceiver() {
             }
 
             ReminderIntents.ACTION_SNOOZE -> {
+                // Only the delivered attempt can be snoozed.
+                if (seq > 0 && reminder.deliveredSeq < seq) {
+                    Log.w(TAG, "Ignoring snooze for an undelivered attempt of ${reminder.id}")
+                    return
+                }
                 val duplicate =
                     cached != null &&
                         cached.status == STATUS_SCHEDULED &&
@@ -108,7 +154,12 @@ internal class ReminderActionReceiver : BroadcastReceiver() {
                         scheduleMode = "pending",
                         scheduleReason = "snoozed-from-notification",
                         scheduledAt = null,
-                        lastFiredAt = null,
+                        // A snooze is an absolute instant; never let a later
+                        // zone/clock reschedule recompute the original wall time.
+                        localDate = null,
+                        localTime = null,
+                        // A snooze is the only thing that starts a new attempt.
+                        triggerSeq = reminder.triggerSeq + 1,
                         deliveryState = null,
                         updatedAt = now,
                     )
@@ -130,6 +181,7 @@ internal class ReminderActionReceiver : BroadcastReceiver() {
                         requestCode = reminder.requestCode,
                         occurredAt = now,
                         snoozedUntil = snoozedUntil,
+                        seq = seq,
                         title = reminder.title,
                         body = reminder.body,
                     ),
